@@ -81,7 +81,7 @@
   <h1>FHIR Resource Processor</h1>
   <div class="form-group">
     <label for="url">URL:</label>
-    <input type="text" id="url" name="url" />
+    <input type="text" id="url" name="url" value="https://raw.githubusercontent.com/jmandel/fhir-view-to-array/main/pt.ndjson" />
   </div>
   <div class="form-group">
     <label for="file">File:</label>
@@ -120,11 +120,11 @@
 
       let resources;
 
-      if (url) {
-        resources = processResources(fetchResourcesFromUrl(url), config);
-      } else if (fileInput.files.length > 0) {
+      if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
         resources = processResources(readResourcesFromFile(file), config);
+      } else if (url) {
+        resources = processResources(fetchResourcesFromUrl(url), config);
       } else {
         output.textContent = "Please provide a URL or a file.";
         return;
