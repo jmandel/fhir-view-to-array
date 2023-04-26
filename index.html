@@ -123,7 +123,7 @@
             filterResource(resource, config)
           ) {
             const rowData = extractColumns(resource, config);
-            result.push(rowData);
+            result.push(...rowData);
           }
         }
 
@@ -139,144 +139,68 @@
       function extractColumns(resource, config) {
         const collections = {};
 
-        for (const key in config.collections) {
-          const expression = config.collections[key];
-          collections[key] = fhirpath.evaluate(
-            resource,
-            expression,
-            collections
-          );
-        }
-        console.log("COLL", collections);
+        function* iterateCollections(collectionKeys, context = {}) {
+          if (collectionKeys.length === 0) {
+            const rowData = [];
 
-        const rowData = [];
-
-        for (const key in config.columns) {
-          const expression = config.columns[key];
-          const value = fhirpath.evaluate(resource, expression, collections);
-          rowData.push(value?.[0]);
-        }
-
-        return rowData;
-      }
-
-      function calculateDependencyGraph(collections) {
-        const dependencyGraph = {};
-
-        for (const key in collections) {
-          const expression = collections[key];
-          const dependencies = expression.match(/%\w+/g) || [];
-          dependencyGraph[key] = dependencies.map((dependency) =>
-            dependency.slice(1)
-          );
-        }
-
-        return dependencyGraph;
-      }
-
-      const collections = {
-        col1: "Patient.contact",
-        col2: "Patient.telecom",
-        col3: "%col1.extension | %col2.whatever",
-        col4: "Patient.identifier",
-        col5: "%col3.extension",
-        col6: "Patient.gender | %col5.bad",
-        col6: "Patient.name",
-      };
-
-      const dependencyGraph = calculateDependencyGraph(collections);
-
-      console.log(dependencyGraph); // {col1: [], col2: [], col3: ["col1"], col4: [], col5: ["col4"], col6: []}
-
-      import lodash from "https://cdn.skypack.dev/lodash";
-      const _ = lodash;
-
-      function allDeps(dependencyGraph, k) {
-        return Array.from(
-          new Set(
-            [k]
-              .concat(dependencyGraph[k])
-              .concat(
-                (dependencyGraph[k] || []).flatMap((subk) =>
-                  allDeps(dependencyGraph, subk)
-                )
-              )
-              .filter((v) => !!v)
-          )
-        );
-      }
-
-      function maxDepth(dependencyGraph, k, start = 0) {
-        if (!dependencyGraph[k]?.length) {
-          return start;
-        }
-        return Math.max(
-          ...dependencyGraph[k].map((v) =>
-            maxDepth(dependencyGraph, v, start + 1)
-          )
-        );
-      }
-
-      function focus(dependencyGraph, deps) {
-        const relevantDeps = new Set(
-          deps.flatMap((d) => allDeps(dependencyGraph, d))
-        );
-        console.log("FOCUS", dependencyGraph, deps, relevantDeps);
-        const ret = JSON.parse(JSON.stringify(dependencyGraph));
-        for (const k of Object.keys(ret)) {
-          if (!allDeps(dependencyGraph, k).some((d) => relevantDeps.has(d))) {
-            console.log("deleting irrelvant k", k, allDeps(dependencyGraph, k));
-            delete ret[k];
-          }
-        }
-        return ret;
-      }
-
-      function coveredBy(solution) {
-        if (typeof solution === "string") {
-          return [solution];
-        }
-        console.log("CB", solution);
-        return [
-            ...(solution.unnestFrom ? [solution.unnestFrom] : []),
-            ...(solution.unnestTo ? [solution.unnestTo] : []),
-            ...(solution.product ? solution.product : [])
-        ].flatMap((e) => coveredBy(e));
-      }
-
-      function solveColumns(dependencyGraph) {
-        console.log("ORDER", dependencyGraph);
-
-        const ret = {
-          product: [],
-        };
-
-        while (Object.keys(dependencyGraph).length > 0) {
-          const deepest = _.sortBy(
-            Object.keys(dependencyGraph),
-            (key) => -maxDepth(dependencyGraph, key)
-          )[0];
-          console.log("DPST", deepest);
-          const deps = dependencyGraph[deepest];
-          delete dependencyGraph[deepest];
-          if (deps.length === 0) {
-            ret.product.push(deepest);
-          } else {
-            const subProblem = focus(dependencyGraph, deps.concat(deepest));
-            console.log("SUBP FOR", deepest, deps, subProblem);
-            const subSolution = solveColumns(subProblem);
-            console.log("SUbsol", subSolution);
-            for (const c of coveredBy(subSolution)) {
-              delete dependencyGraph[c];
+            for (const key in config.columns) {
+              const expression = config.columns[key];
+              const value = fhirpath.evaluate(resource, expression, context);
+              if (value.length > 1) {
+                console.log("Expression returned >1 value", key, value)
+              }
+              rowData.push(value?.[0]);
             }
-            ret.product.push({ unnestFrom: subSolution, unnestTo: deepest });
+
+            yield rowData;
+          } else {
+            const currentKey = collectionKeys[0];
+            const remainingKeys = collectionKeys.slice(1);
+            const expression = config.collections[currentKey];
+            const currentCollection = fhirpath.evaluate(
+              resource,
+              expression,
+              context
+            );
+
+            for (const item of currentCollection) {
+              console.log("i", item)
+              const newContext = { ...context, [currentKey]: item };
+              yield* iterateCollections(remainingKeys, newContext);
+            }
           }
         }
 
-        return ret.product.length === 1 ? ret.product[0] : ret;
+        const collectionKeys = Object.keys(config.collections);
+        const result = Array.from(iterateCollections(collectionKeys));
+
+        return result;
       }
 
-      console.log(solveColumns(dependencyGraph));
+      const data = {text: () => `{ "resourceType" : "Patient", "id" : "example", "meta" : { "profile" : ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient"] }, "extension" : [{ "extension" : [{ "url" : "ombCategory", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2106-3", "display" : "White" } }, { "url" : "ombCategory", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "1002-5", "display" : "American Indian or Alaska Native" } }, { "url" : "ombCategory", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2028-9", "display" : "Asian" } }, { "url" : "detailed", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "1586-7", "display" : "Shoshone" } }, { "url" : "detailed", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2036-2", "display" : "Filipino" } }, { "url" : "text", "valueString" : "Mixed" }], "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race" }, { "extension" : [{ "url" : "ombCategory", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2135-2", "display" : "Hispanic or Latino" } }, { "url" : "detailed", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2184-0", "display" : "Dominican" } }, { "url" : "detailed", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2148-5", "display" : "Mexican" } }, { "url" : "text", "valueString" : "Hispanic or Latino" }], "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity" }, { "extension" : [{ "url" : "tribalAffiliation", "valueCodeableConcept" : { "coding" : [{ "system" : "http://terminology.hl7.org/CodeSystem/v3-TribalEntityUS", "code" : "187", "display" : "Paiute-Shoshone Tribe of the Fallon Reservation and Colony, Nevada" }], "text" : "Shoshone" } }, { "url" : "isEnrolled", "valueBoolean" : false }], "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-tribal-affiliation" }, { "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex", "valueCode" : "F" }, { "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-genderIdentity", "valueCodeableConcept" : { "coding" : [{ "system" : "http://terminology.hl7.org/CodeSystem/v3-NullFlavor", "code" : "UNK", "display" : "Unknown" }], "text" : "Unknown" } }], "identifier" : [{ "use" : "usual", "type" : { "coding" : [{ "system" : "http://terminology.hl7.org/CodeSystem/v2-0203", "code" : "MR", "display" : "Medical Record Number" }], "text" : "Medical Record Number" }, "system" : "http://hospital.smarthealthit.org", "value" : "1032702" }], "active" : true, "name" : [{ "use" : "old", "family" : "Shaw", "given" : ["Amy", "V."], "period" : { "start" : "2016-12-06", "end" : "2020-07-22" } }, { "family" : "Baxter", "given" : ["Amy", "V."], "suffix" : ["PharmD"], "period" : { "start" : "2020-07-22" } }], "telecom" : [{ "system" : "phone", "value" : "555-555-5555", "use" : "home" }, { "system" : "email", "value" : "amy.shaw@example.com" }], "gender" : "female", "birthDate" : "1987-02-20", "address" : [{ "use" : "old", "line" : ["49 Meadow St"], "city" : "Mounds", "state" : "OK", "postalCode" : "74047", "country" : "US", "period" : { "start" : "2016-12-06", "end" : "2020-07-22" } }, { "line" : ["183 Mountain View St"], "city" : "Mounds", "state" : "OK", "postalCode" : "74048", "country" : "US", "period" : { "start" : "2020-07-22" } }], "contact": [{"name": {"text": "Alice"}, "telecom": {"value": "617-500-0000"}}, {"name": {"text": "Bob"}, "telecom": {"value": "617-500-0001"}}] }
+{ "resourceType" : "Patient", "id" : "example", "meta" : { "profile" : ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient"] }, "extension" : [{ "extension" : [{ "url" : "ombCategory", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2106-3", "display" : "White" } }, { "url" : "ombCategory", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "1002-5", "display" : "American Indian or Alaska Native" } }, { "url" : "ombCategory", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2028-9", "display" : "Asian" } }, { "url" : "detailed", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "1586-7", "display" : "Shoshone" } }, { "url" : "detailed", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2036-2", "display" : "Filipino" } }, { "url" : "text", "valueString" : "Mixed" }], "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race" }, { "extension" : [{ "url" : "ombCategory", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2135-2", "display" : "Hispanic or Latino" } }, { "url" : "detailed", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2184-0", "display" : "Dominican" } }, { "url" : "detailed", "valueCoding" : { "system" : "urn:oid:2.16.840.1.113883.6.238", "code" : "2148-5", "display" : "Mexican" } }, { "url" : "text", "valueString" : "Hispanic or Latino" }], "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity" }, { "extension" : [{ "url" : "tribalAffiliation", "valueCodeableConcept" : { "coding" : [{ "system" : "http://terminology.hl7.org/CodeSystem/v3-TribalEntityUS", "code" : "187", "display" : "Paiute-Shoshone Tribe of the Fallon Reservation and Colony, Nevada" }], "text" : "Shoshone" } }, { "url" : "isEnrolled", "valueBoolean" : false }], "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-tribal-affiliation" }, { "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex", "valueCode" : "F" }, { "url" : "http://hl7.org/fhir/us/core/StructureDefinition/us-core-genderIdentity", "valueCodeableConcept" : { "coding" : [{ "system" : "http://terminology.hl7.org/CodeSystem/v3-NullFlavor", "code" : "UNK", "display" : "Unknown" }], "text" : "Unknown" } }], "identifier" : [{ "use" : "usual", "type" : { "coding" : [{ "system" : "http://terminology.hl7.org/CodeSystem/v2-0203", "code" : "MR", "display" : "Medical Record Number" }], "text" : "Medical Record Number" }, "system" : "http://hospital.smarthealthit.org", "value" : "1032702" }], "active" : true, "name" : [{ "use" : "old", "family" : "Shaw", "given" : ["Amy", "V."], "period" : { "start" : "2016-12-06", "end" : "2020-07-22" } }, { "family" : "Baxter", "given" : ["Amy", "V."], "suffix" : ["PharmD"], "period" : { "start" : "2020-07-22" } }], "telecom" : [{ "system" : "phone", "value" : "555-555-5555", "use" : "home" }, { "system" : "email", "value" : "amy.shaw@example.com" }], "gender" : "female", "birthDate" : "1987-02-20", "address" : [{ "use" : "old", "line" : ["49 Meadow St"], "city" : "Mounds", "state" : "OK", "postalCode" : "74047", "country" : "US", "period" : { "start" : "2016-12-06", "end" : "2020-07-22" } }, { "line" : ["183 Mountain View St"], "city" : "Mounds", "state" : "OK", "postalCode" : "74048", "country" : "US", "period" : { "start" : "2020-07-22" } }], "contact": [{"name": {"text": "Alice"}, "telecom": {"value": "617-500-0000"}}, {"name": {"text": "Bob"}, "telecom": {"value": "617-500-0001"}}] }
+`};
+ const testConfig = {
+  "resource": "Patient",
+  "filter": [
+    "Patient.gender = 'male'"
+  ],
+  "collections": {
+    "pc": "Patient.contact",
+    "pct": "%pc.telecom"
+  },
+  "columns": {
+    "pid": "Patient.id",
+    "cname": "%pc.name.text",
+    "ctel": "%pct.value"
+  }
+ }
+      const resources = await processResources(
+            readResourcesFromFile(data),
+            testConfig
+          );
+
+ console.log(resources)
     </script>
   </body>
 </html>
