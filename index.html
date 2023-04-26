@@ -1,95 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FHIR Resources To Table</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FHIR Resources To Table</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 1rem;
+        background-color: #f5f5f5;
+      }
 
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 1rem;
-      background-color: #f5f5f5;
-    }
+      h1 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+      }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 1.5rem;
-    }
-
-    .form-group {
-      display: grid;
-      grid-template-columns: 1fr;
-    }
-
-    .form-group label {
-      font-weight: bold;
-    }
-
-    #config {
-      min-height: 300px;
-    }
-
-
-    .form-group input,
-    .form-group textarea {
-      padding: 0.5rem;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-
-    button {
-      font-size: 1rem;
-      font-weight: bold;
-      padding: 0.5rem 1rem;
-      border: none;
-      border-radius: 5px;
-      background-color: #4caf50;
-      color: white;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-
-    button:hover {
-      background-color: #45a049;
-    }
-
-    #output {
-      margin-top: 1rem;
-      padding: 1rem;
-      background-color: white;
-      border-radius: 5px;
-      overflow-x: auto;
-    }
-
-    @media (max-width: 600px) {
       .form-group {
+        display: grid;
         grid-template-columns: 1fr;
       }
-    }
-  </style>
-</head>
 
-<body>
-  <h1>FHIR Resource Processor</h1>
-  <div class="form-group">
-    <label for="url">URL:</label>
-    <input type="text" id="url" name="url" value="https://raw.githubusercontent.com/jmandel/fhir-view-to-array/main/pt.ndjson" />
-  </div>
-  <div class="form-group">
-    <label for="file">File:</label>
-    <input type="file" id="file" name="file" />
-  </div>
-  <div class="form-group">
-    <label for="config">Config:</label>
-    <textarea id="config" name="config" rows="10" cols="30">
+      .form-group label {
+        font-weight: bold;
+      }
+
+      #config {
+        min-height: 300px;
+      }
+
+      .form-group input,
+      .form-group textarea {
+        padding: 0.5rem;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+
+      button {
+        font-size: 1rem;
+        font-weight: bold;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 5px;
+        background-color: #4caf50;
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      button:hover {
+        background-color: #45a049;
+      }
+
+      #output {
+        margin-top: 1rem;
+        padding: 1rem;
+        background-color: white;
+        border-radius: 5px;
+        overflow-x: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        border: 1px solid black;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+
+
+      @media (max-width: 600px) {
+        .form-group {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>FHIR Resource Processor</h1>
+    <div class="form-group">
+      <label for="url">URL:</label>
+      <input
+        type="text"
+        id="url"
+        name="url"
+        value="https://raw.githubusercontent.com/jmandel/fhir-view-to-array/main/pt.ndjson"
+      />
+    </div>
+    <div class="form-group">
+      <label for="file">File:</label>
+      <input type="file" id="file" name="file" />
+    </div>
+    <div class="form-group">
+      <label for="config">Config:</label>
+      <textarea id="config" name="config" rows="10" cols="30">
 {
   "resource": "Patient",
   "filter": [
@@ -106,60 +123,97 @@
   }
  }
       </textarea>
-  </div>
-  <button id="process">Process</button>
-  <pre id="output">out</pre>
+    </div>
+    <button id="process">Process</button>
+        <table id="output">
+      <thead>
+        <tr id="header-row"></tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
 
-  <script type="module">
-    document.getElementById("process").addEventListener("click", async () => {
-      const url = document.getElementById("url").value;
-      const fileInput = document.getElementById("file");
-      const configTextArea = document.getElementById("config");
-      const output = document.getElementById("output");
-      const config = JSON.parse(configTextArea.value);
 
-      let resources;
+    <script type="module">
+      document.getElementById("process").addEventListener("click", async () => {
+        
+        const url = document.getElementById("url").value;
+        const fileInput = document.getElementById("file");
+        const configTextArea = document.getElementById("config");
+        const output = document.getElementById("output");
+        const config = JSON.parse(configTextArea.value);
 
-      if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        resources = processResources(readResourcesFromFile(file), config);
-      } else if (url) {
-        resources = processResources(fetchResourcesFromUrl(url), config);
-      } else {
-        output.textContent = "Please provide a URL or a file.";
-        return;
-      }
+        let resources;
 
-      const result = [];
-      for await (const row of resources) {
-        result.push(row);
-      }
-      output.textContent = JSON.stringify(result, null, 2);
-    });
-
-    import fhirpath from "https://cdn.skypack.dev/fhirpath@v3.3.2";
-
-    export async function* fetchResourcesFromUrl(url) {
-      const response = await fetch(url);
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-
-        if (done) {
-          // Process the remaining buffer content when done
-          if (buffer) {
-            yield JSON.parse(buffer);
-          }
-          break;
+        if (fileInput.files.length > 0) {
+          const file = fileInput.files[0];
+          resources = processResources(readResourcesFromFile(file), config);
+        } else if (url) {
+          resources = processResources(fetchResourcesFromUrl(url), config);
+        } else {
+          output.textContent = "Please provide a URL or a file.";
+          return;
         }
 
-        buffer += decoder.decode(value, { stream: true });
+        const outputTable = document.getElementById("table-body");
+        const headerRow = document.getElementById("header-row");
+        outputTable.innerHTML = "";
+        headerRow.innerHTML = "";
 
-        const lines = buffer.split("\n");
-        buffer = lines.pop(); // Keep the last (potentially incomplete) line in the buffer
+        for (const key in config.columns) {
+          const headerCell = document.createElement("th");
+          headerCell.textContent = key;
+          headerRow.appendChild(headerCell);
+        }
+
+        console.log(resources)
+        for await (const row of resources) {
+          const tableRow = document.createElement("tr");
+          for (const cellData of row) {
+            const tableCell = document.createElement("td");
+            tableCell.textContent = cellData;
+            tableRow.appendChild(tableCell);
+          }
+          outputTable.appendChild(tableRow);
+        }
+      });
+
+      import fhirpath from "https://cdn.skypack.dev/fhirpath@v3.3.2";
+
+      export async function* fetchResourcesFromUrl(url) {
+        const response = await fetch(url);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+
+          if (done) {
+            // Process the remaining buffer content when done
+            if (buffer) {
+              yield JSON.parse(buffer);
+            }
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split("\n");
+          buffer = lines.pop(); // Keep the last (potentially incomplete) line in the buffer
+
+          for (const line of lines) {
+            if (!line) {
+              continue;
+            }
+
+            yield JSON.parse(line);
+          }
+        }
+      }
+
+      export async function* readResourcesFromFile(file) {
+        const text = await file.text();
+        const lines = text.split("\n");
 
         for (const line of lines) {
           if (!line) {
@@ -169,83 +223,66 @@
           yield JSON.parse(line);
         }
       }
-    }
 
-    export async function* readResourcesFromFile(file) {
-      const text = await file.text();
-      const lines = text.split("\n");
-
-      for (const line of lines) {
-        if (!line) {
-          continue;
-        }
-
-        yield JSON.parse(line);
-      }
-    }
-
-    export async function* processResources(resourceGenerator, config) {
-      for await (const resource of resourceGenerator) {
-        if (
-          resource.resourceType === config.resource &&
-          filterResource(resource, config)
-        ) {
-          const rowData = extractColumns(resource, config);
-          for (const row of rowData) {
-            yield row;
-          }
-        }
-      }
-    }
-
-    function filterResource(resource, config) {
-      return config.filter.every((expression) =>
-        fhirpath.evaluate(resource, expression, null)
-      );
-    }
-
-    function extractColumns(resource, config) {
-      const collections = {};
-
-      function* iterateCollections(collectionKeys, context = {}) {
-        if (collectionKeys.length === 0) {
-          const rowData = [];
-
-          for (const key in config.columns) {
-            const expression = config.columns[key];
-            const value = fhirpath.evaluate(resource, expression, context);
-            if (value.length > 1) {
-              console.log("Expression returned >1 value", key, value);
+      export async function* processResources(resourceGenerator, config) {
+        for await (const resource of resourceGenerator) {
+          if (
+            resource.resourceType === config.resource &&
+            filterResource(resource, config)
+          ) {
+            const rowData = extractColumns(resource, config);
+            for (const row of rowData) {
+              yield row;
             }
-            rowData.push(value?.[0]);
-          }
-
-          yield rowData;
-        } else {
-          const currentKey = collectionKeys[0];
-          const remainingKeys = collectionKeys.slice(1);
-          const expression = config.collections[currentKey];
-          const currentCollection = fhirpath.evaluate(
-            resource,
-            expression,
-            context
-          );
-
-          for (const item of currentCollection) {
-            console.log("i", item);
-            const newContext = { ...context, [currentKey]: item };
-            yield* iterateCollections(remainingKeys, newContext);
           }
         }
       }
 
-      const collectionKeys = Object.keys(config.collections);
-      const result = Array.from(iterateCollections(collectionKeys));
+      function filterResource(resource, config) {
+        return config.filter.every((expression) =>
+          fhirpath.evaluate(resource, expression, null)
+        );
+      }
 
-      return result;
-    }
+      function extractColumns(resource, config) {
+        const collections = {};
 
-  </script>
-</body>
+        function* iterateCollections(collectionKeys, context = {}) {
+          if (collectionKeys.length === 0) {
+            const rowData = [];
 
+            for (const key in config.columns) {
+              const expression = config.columns[key];
+              const value = fhirpath.evaluate(resource, expression, context);
+              if (value.length > 1) {
+                console.log("Expression returned >1 value", key, value);
+              }
+              rowData.push(value?.[0]);
+            }
+
+            yield rowData;
+          } else {
+            const currentKey = collectionKeys[0];
+            const remainingKeys = collectionKeys.slice(1);
+            const expression = config.collections[currentKey];
+            const currentCollection = fhirpath.evaluate(
+              resource,
+              expression,
+              context
+            );
+
+            for (const item of currentCollection) {
+              console.log("i", item);
+              const newContext = { ...context, [currentKey]: item };
+              yield* iterateCollections(remainingKeys, newContext);
+            }
+          }
+        }
+
+        const collectionKeys = Object.keys(config.collections);
+        const result = Array.from(iterateCollections(collectionKeys));
+        return result;
+      }
+    </script>
+  </body>
 </html>
