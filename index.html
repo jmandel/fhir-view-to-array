@@ -114,15 +114,15 @@
   ],
   "collections": {
     "pc": "Patient.contact",
-    "pct": "%pc.telecom"
+    "pct": "%pc.telecom",
+    "ident": "Patient.identifier"
   },
   "columns": {
-    "pid": "Patient.id",
+    "pidentifier": "%ident.system & '|' & %ident.value",
     "cname": "%pc.name.text",
     "ctel": "%pct.value"
   }
- }
-      </textarea>
+ }</textarea>
     </div>
     <button id="process">Process</button>
         <table id="output">
