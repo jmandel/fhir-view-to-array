@@ -61,13 +61,13 @@ function extractColumns(resource, config) {
 
 export async function* fromUrl(url) {
   const response = await fetch(url);
-  yield* streamResourcesFromNdjsonResponse(response)
+  yield* fromNdjsonResponse(response)
 
 }
 
 export async function* fromFile(file) {
   const response = new Response(file).body;
-  yield* streamResourcesFromNdjsonResponse(response)
+  yield* fromNdjsonResponse(response)
 }
 
 
