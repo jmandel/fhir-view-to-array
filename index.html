@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FHIR Resources To Table</title>
+    <title>FHIR Analytics View -> Table</title>
     <style>
       * {
         box-sizing: border-box;
@@ -90,7 +90,7 @@
   </head>
 
   <body>
-    <h1>FHIR Resource Processor</h1>
+    <h1>FHIR Analytics View -> Table</h1>
     <div class="form-group">
       <label for="url">URL:</label>
       <input
@@ -110,7 +110,7 @@
 {
   "resource": "Patient",
   "filter": [
-    "Patient.gender = 'male'"
+    "Patient.gender = 'female'"
   ],
   "collections": {
     "pc": "Patient.contact",
@@ -238,7 +238,7 @@
 
       function filterResource(resource, config) {
         return config.filter.every((expression) =>
-          fhirpath.evaluate(resource, expression, null)
+          fhirpath.evaluate(resource, expression, null).every(v => !!v)
         );
       }
 
