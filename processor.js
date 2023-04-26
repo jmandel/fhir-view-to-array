@@ -1,50 +1,5 @@
 import fhirpath from "https://cdn.skypack.dev/fhirpath@v3.3.2";
 
-export async function* fetchResourcesFromUrl(url) {
-  const response = await fetch(url);
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { value, done } = await reader.read();
-
-    if (done) {
-      // Process the remaining buffer content when done
-      if (buffer) {
-        yield JSON.parse(buffer);
-      }
-      break;
-    }
-
-    buffer += decoder.decode(value, { stream: true });
-
-    const lines = buffer.split("\n");
-    buffer = lines.pop(); // Keep the last (potentially incomplete) line in the buffer
-
-    for (const line of lines) {
-      if (!line) {
-        continue;
-      }
-
-      yield JSON.parse(line);
-    }
-  }
-}
-
-export async function* readResourcesFromFile(file) {
-  const text = await file.text();
-  const lines = text.split("\n");
-
-  for (const line of lines) {
-    if (!line) {
-      continue;
-    }
-
-    yield JSON.parse(line);
-  }
-}
-
 export async function* processResources(resourceGenerator, config) {
   for await (const resource of resourceGenerator) {
     if (
@@ -103,3 +58,49 @@ function extractColumns(resource, config) {
   const result = Array.from(iterateCollections(collectionKeys));
   return result;
 }
+
+export async function* fetchResourcesFromUrl(url) {
+  const response = await fetch(url);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+
+    if (done) {
+      // Process the remaining buffer content when done
+      if (buffer) {
+        yield JSON.parse(buffer);
+      }
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop(); // Keep the last (potentially incomplete) line in the buffer
+
+    for (const line of lines) {
+      if (!line) {
+        continue;
+      }
+
+      yield JSON.parse(line);
+    }
+  }
+}
+
+export async function* readResourcesFromFile(file) {
+  const text = await file.text();
+  const lines = text.split("\n");
+
+  for (const line of lines) {
+    if (!line) {
+      continue;
+    }
+
+    yield JSON.parse(line);
+  }
+}
+
