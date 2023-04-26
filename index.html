@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FHIR Resource Processor</title>
+  </head>
+  <body>
+    <h1>FHIR Resource Processor</h1>
+    <div>
+      <label for="url">URL:</label>
+      <input type="text" id="url" name="url" />
+    </div>
+    <div>
+      <label for="file">File:</label>
+      <input type="file" id="file" name="file" />
+    </div>
+    <div>
+      <label for="config">Config:</label>
+      <textarea id="config" name="config" rows="10" cols="30">
+{
+  "resource": "Patient",
+  "filter": [
+    "Patient.gender = 'male'"
+  ],
+  "collections": {
+    "pc": "Patient.contact",
+    "pct": "%pc.telecom"
+  },
+  "columns": {
+    "pid": "Patient.id",
+    "cname": "%pc.name.text",
+    "ctel": "%pct.value"
+  }
+ }
+      </textarea>
+    </div>
+    <button id="process">Process</button>
+    <pre id="output">out</pre>
+
+    <script type="module">
+      document.getElementById("process").addEventListener("click", async () => {
+        const url = document.getElementById("url").value;
+        const fileInput = document.getElementById("file");
+        const configTextArea = document.getElementById("config");
+        const output = document.getElementById("output");
+        const config = JSON.parse(configTextArea.value);
+
+        let resources;
+
+        if (url) {
+          resources = await processResources(
+            fetchResourcesFromUrl(url),
+            config
+          );
+        } else if (fileInput.files.length > 0) {
+          const file = fileInput.files[0];
+          resources = await processResources(
+            readResourcesFromFile(file),
+            config
+          );
+        } else {
+          output.textContent = "Please provide a URL or a file.";
+          return;
+        }
+
+        output.textContent = JSON.stringify(resources, null, 2);
+      });
+
+      import fhirpath from "https://cdn.skypack.dev/fhirpath@v3.3.2";
+
+      export async function* fetchResourcesFromUrl(url) {
+        const response = await fetch(url);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+
+          if (done) {
+            // Process the remaining buffer content when done
+            if (buffer) {
+              yield JSON.parse(buffer);
+            }
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split("\n");
+          buffer = lines.pop(); // Keep the last (potentially incomplete) line in the buffer
+
+          for (const line of lines) {
+            if (!line) {
+              continue;
+            }
+
+            yield JSON.parse(line);
+          }
+        }
+      }
+
+      export async function* readResourcesFromFile(file) {
+        const text = await file.text();
+        const lines = text.split("\n");
+
+        for (const line of lines) {
+          if (!line) {
+            continue;
+          }
+
+          yield JSON.parse(line);
+        }
+      }
+
+      export async function processResources(resourceGenerator, config) {
+        let result = [];
+
+        for await (const resource of resourceGenerator) {
+          if (
+            resource.resourceType === config.resource &&
+            filterResource(resource, config)
+          ) {
+            const rowData = extractColumns(resource, config);
+            result.push(rowData);
+          }
+        }
+
+        return result;
+      }
+
+      function filterResource(resource, config) {
+        return config.filter.every((expression) =>
+          fhirpath.evaluate(resource, expression, null)
+        );
+      }
+
+      function extractColumns(resource, config) {
+        const collections = {};
+
+        for (const key in config.collections) {
+          const expression = config.collections[key];
+          collections[key] = fhirpath.evaluate(
+            resource,
+            expression,
+            collections
+          );
+        }
+        console.log("COLL", collections);
+
+        const rowData = [];
+
+        for (const key in config.columns) {
+          const expression = config.columns[key];
+          const value = fhirpath.evaluate(resource, expression, collections);
+          rowData.push(value?.[0]);
+        }
+
+        return rowData;
+      }
+
+      function calculateDependencyGraph(collections) {
+        const dependencyGraph = {};
+
+        for (const key in collections) {
+          const expression = collections[key];
+          const dependencies = expression.match(/%\w+/g) || [];
+          dependencyGraph[key] = dependencies.map((dependency) =>
+            dependency.slice(1)
+          );
+        }
+
+        return dependencyGraph;
+      }
+
+      const collections = {
+        col1: "Patient.contact",
+        col2: "Patient.telecom",
+        col3: "%col1.extension | %col2.whatever",
+        col4: "Patient.identifier",
+        col5: "%col3.extension",
+        col6: "Patient.gender | %col5.bad",
+        col6: "Patient.name",
+      };
+
+      const dependencyGraph = calculateDependencyGraph(collections);
+
+      console.log(dependencyGraph); // {col1: [], col2: [], col3: ["col1"], col4: [], col5: ["col4"], col6: []}
+
+      import lodash from "https://cdn.skypack.dev/lodash";
+      const _ = lodash;
+
+      function allDeps(dependencyGraph, k) {
+        return Array.from(
+          new Set(
+            [k]
+              .concat(dependencyGraph[k])
+              .concat(
+                (dependencyGraph[k] || []).flatMap((subk) =>
+                  allDeps(dependencyGraph, subk)
+                )
+              )
+              .filter((v) => !!v)
+          )
+        );
+      }
+
+      function maxDepth(dependencyGraph, k, start = 0) {
+        if (!dependencyGraph[k]?.length) {
+          return start;
+        }
+        return Math.max(
+          ...dependencyGraph[k].map((v) =>
+            maxDepth(dependencyGraph, v, start + 1)
+          )
+        );
+      }
+
+      function focus(dependencyGraph, deps) {
+        const relevantDeps = new Set(
+          deps.flatMap((d) => allDeps(dependencyGraph, d))
+        );
+        console.log("FOCUS", dependencyGraph, deps, relevantDeps);
+        const ret = JSON.parse(JSON.stringify(dependencyGraph));
+        for (const k of Object.keys(ret)) {
+          if (!allDeps(dependencyGraph, k).some((d) => relevantDeps.has(d))) {
+            console.log("deleting irrelvant k", k, allDeps(dependencyGraph, k));
+            delete ret[k];
+          }
+        }
+        return ret;
+      }
+
+      function coveredBy(solution) {
+        if (typeof solution === "string") {
+          return [solution];
+        }
+        console.log("CB", solution);
+        return [
+            ...(solution.unnestFrom ? [solution.unnestFrom] : []),
+            ...(solution.unnestTo ? [solution.unnestTo] : []),
+            ...(solution.product ? solution.product : [])
+        ].flatMap((e) => coveredBy(e));
+      }
+
+      function solveColumns(dependencyGraph) {
+        console.log("ORDER", dependencyGraph);
+
+        const ret = {
+          product: [],
+        };
+
+        while (Object.keys(dependencyGraph).length > 0) {
+          const deepest = _.sortBy(
+            Object.keys(dependencyGraph),
+            (key) => -maxDepth(dependencyGraph, key)
+          )[0];
+          console.log("DPST", deepest);
+          const deps = dependencyGraph[deepest];
+          delete dependencyGraph[deepest];
+          if (deps.length === 0) {
+            ret.product.push(deepest);
+          } else {
+            const subProblem = focus(dependencyGraph, deps.concat(deepest));
+            console.log("SUBP FOR", deepest, deps, subProblem);
+            const subSolution = solveColumns(subProblem);
+            console.log("SUbsol", subSolution);
+            for (const c of coveredBy(subSolution)) {
+              delete dependencyGraph[c];
+            }
+            ret.product.push({ unnestFrom: subSolution, unnestTo: deepest });
+          }
+        }
+
+        return ret.product.length === 1 ? ret.product[0] : ret;
+      }
+
+      console.log(solveColumns(dependencyGraph));
+    </script>
+  </body>
+</html>
