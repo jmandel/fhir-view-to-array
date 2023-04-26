@@ -66,7 +66,7 @@ export async function* fromUrl(url) {
 }
 
 export async function* fromFile(file) {
-  const response = new Response(file).body;
+  const response = new Response(file);
   yield* fromNdjsonResponse(response)
 }
 
