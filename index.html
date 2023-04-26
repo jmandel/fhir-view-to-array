@@ -165,7 +165,6 @@
           headerRow.appendChild(headerCell);
         }
 
-        console.log(resources)
         for await (const row of resources) {
           const tableRow = document.createElement("tr");
           for (const cellData of row) {
@@ -178,7 +177,6 @@
       });
 
       import fhirpath from "https://cdn.skypack.dev/fhirpath@v3.3.2";
-
       export async function* fetchResourcesFromUrl(url) {
         const response = await fetch(url);
         const reader = response.body.getReader();
@@ -272,7 +270,6 @@
             );
 
             for (const item of currentCollection) {
-              console.log("i", item);
               const newContext = { ...context, [currentKey]: item };
               yield* iterateCollections(remainingKeys, newContext);
             }
