@@ -11,20 +11,38 @@
 
       body {
         font-family: Arial, sans-serif;
-        max-width: 800px;
         margin: 0 auto;
         padding: 1rem;
         background-color: #f5f5f5;
+        display: grid;
+        gap: 1em;
+        grid-template-columns: minmax(20vw, 100%) auto;
+        grid-template-rows: 3em 1fr;
+        grid-template-areas:
+          "header header"
+          "inputs outputs";
+      }
+
+      .inputs {
+        grid-area: inputs;
+      }
+
+      table {
+        grid-area: outputs;
       }
 
       h1 {
         text-align: center;
         margin-bottom: 1.5rem;
       }
+      header {
+        grid-area: header;
+      }
 
       .form-group {
         display: grid;
         grid-template-columns: 1fr;
+        margin-top: 1em;
       }
 
       .form-group label {
@@ -80,32 +98,38 @@
         background-color: #f2f2f2;
       }
 
-      @media (max-width: 600px) {
+      @media (max-width: 1000px) {
         .form-group {
           grid-template-columns: 1fr;
+        }
+        body {
+          grid-template-areas: "header" "inputs" "outputs";
+          grid-template-columns: auto;
+          grid-template-rows: 3em 1fr 1ft;
         }
       }
     </style>
   </head>
 
   <body>
-    <h1>FHIR Analytics View -> Table</h1>
-    <div class="form-group">
-      <label for="url">URL:</label>
-      <input
-        type="text"
-        id="url"
-        name="url"
-        value="https://raw.githubusercontent.com/jmandel/fhir-view-to-array/main/pt.ndjson"
-      />
-    </div>
-    <div class="form-group">
-      <label for="file">File:</label>
-      <input type="file" id="file" name="file" />
-    </div>
-    <div class="form-group">
-      <label for="config">Config:</label>
-      <textarea id="config" name="config" rows="10" cols="30">
+    <header><h1>FHIR Analytics View -> Table</h1></header>
+    <div class="inputs">
+      <div class="form-group">
+        <label for="url">Provide <code>.ndjson</code> URL:</label>
+        <input
+          type="text"
+          id="url"
+          name="url"
+          value="https://raw.githubusercontent.com/jmandel/fhir-view-to-array/main/pt.ndjson"
+        />
+      </div>
+      <div class="form-group">
+        <label for="file">Or choose <code>.ndjson</code> file:</label>
+        <input type="file" id="file" name="file" accept=".ndjson,.jsonl" />
+      </div>
+      <div class="form-group">
+        <label for="config">Config:</label>
+        <textarea id="config" name="config" rows="10" cols="30">
 {
   "resource": "Patient",
   "filter": [
@@ -121,9 +145,11 @@
     "cname": "%pc.name.text",
     "ctel": "%pct.value"
   }
- }</textarea>
+ }</textarea
+        >
+      </div>
+      <button id="process">Process</button>
     </div>
-    <button id="process">Process</button>
     <table id="output">
       <thead>
         <tr id="header-row"></tr>
@@ -131,11 +157,7 @@
       <tbody id="table-body"></tbody>
     </table>
     <script type="module">
-      import {
-        processResources,
-        fromFile,
-        fromUrl,
-      } from "./processor.js";
+      import { processResources, fromFile, fromUrl } from "./processor.js";
       document.getElementById("process").addEventListener("click", async () => {
         const url = document.getElementById("url").value;
         const fileInput = document.getElementById("file");

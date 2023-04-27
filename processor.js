@@ -6,10 +6,7 @@ export async function* processResources(resourceGenerator, config) {
       resource.resourceType === config.resource &&
       filterResource(resource, config)
     ) {
-      const rowData = extractColumns(resource, config);
-      for (const row of rowData) {
-        yield row;
-      }
+      yield* extractColumns(resource, config);
     }
   }
 }
@@ -35,7 +32,6 @@ function extractColumns(resource, config) {
         }
         rowData.push(value?.[0]);
       }
-
       yield rowData;
     } else {
       const currentKey = collectionKeys[0];
@@ -46,7 +42,6 @@ function extractColumns(resource, config) {
         expression,
         context
       );
-
       for (const item of currentCollection) {
         const newContext = { ...context, [currentKey]: item };
         yield* iterateCollections(remainingKeys, newContext);
@@ -88,7 +83,6 @@ export async function* fromNdjsonResponse(response) {
     }
 
     buffer += decoder.decode(value, { stream: true });
-
     const lines = buffer.split("\n");
     buffer = lines.pop(); // Keep the last (potentially incomplete) line in the buffer
 
@@ -96,7 +90,6 @@ export async function* fromNdjsonResponse(response) {
       if (!line) {
         continue;
       }
-
       yield JSON.parse(line);
     }
   }
