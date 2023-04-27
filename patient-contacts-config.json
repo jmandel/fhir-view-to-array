@@ -1,0 +1,16 @@
+{
+  "resource": "Patient",
+  "filters": [
+    "Patient.gender = 'female'"
+  ],
+  "variables": {
+    "pc": "Patient.contact",
+    "pct": "%pc.telecom",
+    "ident": "Patient.identifier"
+  },
+  "columns": {
+    "pidentifier": "%ident.system & '|' & %ident.value",
+    "cname": "%pc.name.text",
+    "ctel": "%pct.value"
+  }
+}

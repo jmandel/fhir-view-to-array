@@ -2,7 +2,7 @@ import fhirpath from "https://cdn.skypack.dev/fhirpath@v3.3.2";
 
 export async function* processResources(resourceGenerator, configIn) {
   const config = JSON.parse(JSON.stringify(configIn));
-  ["collections", "filters", "columns"].forEach((s) => {
+  ["variables", "filters", "columns"].forEach((s) => {
     Object.keys(config[s]).forEach((k) => {
       config[s][k] = fhirpath.compile(config[s][k]);
     });
@@ -25,9 +25,9 @@ function filterResource(resource, config) {
 }
 
 function extractColumns(resource, config) {
-  const collections = {};
+  const variables = {};
 
-  function* iterateCollections(collectionKeys, context = {}) {
+  function* iterateVariables(collectionKeys, context = {}) {
     if (collectionKeys.length === 0) {
       const rowData = [];
 
@@ -43,17 +43,17 @@ function extractColumns(resource, config) {
     } else {
       const currentKey = collectionKeys[0];
       const remainingKeys = collectionKeys.slice(1);
-      const expression = config.collections[currentKey];
+      const expression = config.variables[currentKey];
       const currentCollection = expression(resource, context);
       for (const item of currentCollection) {
         const newContext = { ...context, [currentKey]: item };
-        yield* iterateCollections(remainingKeys, newContext);
+        yield* iterateVariables(remainingKeys, newContext);
       }
     }
   }
 
-  const collectionKeys = Object.keys(config.collections);
-  const result = Array.from(iterateCollections(collectionKeys));
+  const collectionKeys = Object.keys(config.variables);
+  const result = Array.from(iterateVariables(collectionKeys));
   return result;
 }
 

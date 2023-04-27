@@ -12,6 +12,7 @@
       html, body {
         height: 100%;
       }
+
       body {
         font-family: Arial, sans-serif;
         margin: 0 auto;
@@ -59,8 +60,7 @@
         min-height: 300px;
       }
 
-      .form-group input,
-      .form-group textarea {
+      .form-group input, .form-group pre {
         padding: 0.5rem;
         font-size: 1rem;
         border: 1px solid #ccc;
@@ -77,6 +77,8 @@
         color: white;
         cursor: pointer;
         transition: background-color 0.3s;
+        width: 100%;
+        margin-top: 1em;
       }
 
       button:hover {
@@ -85,17 +87,13 @@
 
       #output {
         margin-top: 1rem;
-        padding: 1rem;
-        background-color: white;
-        border-radius: 5px;
         overflow-x: auto;
-      }
-      table {
         border-collapse: collapse;
-        width: 100%;
       }
-      th,
-      td {
+      #output th {
+        background-color: #d1d1d1;
+      }
+      th, td {
         border: 1px solid black;
         padding: 8px;
         text-align: left;
@@ -108,11 +106,10 @@
         .form-group {
           grid-template-columns: 1fr;
         }
-        html, body {
-
+        html,
+        body {
           height: auto;
-
-      }
+        }
         #output {
           max-height: auto;
         }
@@ -143,13 +140,13 @@
       </div>
       <div class="form-group">
         <label for="config">Config:</label>
-        <textarea id="config" name="config" rows="10" cols="30">
+        <pre contenteditable style="background: white;" id="config" name="config" >
 {
   "resource": "Patient",
   "filters": [
     "Patient.gender = 'female'"
   ],
-  "collections": {
+  "variables": {
     "pc": "Patient.contact",
     "pct": "%pc.telecom",
     "ident": "Patient.identifier"
@@ -159,10 +156,10 @@
     "cname": "%pc.name.text",
     "ctel": "%pct.value"
   }
- }</textarea
+}</pre
         >
       </div>
-      <button id="process">Process</button>
+      <button id="process">Process ndjson -> table</button>
     </div>
     <table id="output">
       <thead>
@@ -172,12 +169,13 @@
     </table>
     <script type="module">
       import { processResources, fromFile, fromUrl } from "./processor.js";
-      document.getElementById("process").addEventListener("click", async () => {
+      const go = document.getElementById("process");
+      go.addEventListener("click", async () => {
         const url = document.getElementById("url").value;
         const fileInput = document.getElementById("file");
         const configTextArea = document.getElementById("config");
         const output = document.getElementById("output");
-        const config = JSON.parse(configTextArea.value);
+        const config = JSON.parse(configTextArea.innerText);
 
         let resources;
 
@@ -212,6 +210,7 @@
           outputTable.appendChild(tableRow);
         }
       });
+      go.click()
     </script>
   </body>
 </html>
