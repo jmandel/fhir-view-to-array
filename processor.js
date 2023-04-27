@@ -1,6 +1,13 @@
 import fhirpath from "https://cdn.skypack.dev/fhirpath@v3.3.2";
 
-export async function* processResources(resourceGenerator, config) {
+export async function* processResources(resourceGenerator, configIn) {
+  const config = JSON.parse(JSON.stringify(configIn));
+  ["collections", "filters", "columns"].forEach((s) => {
+    Object.keys(config[s]).forEach((k) => {
+      config[s][k] = fhirpath.compile(config[s][k]);
+    });
+  });
+
   for await (const resource of resourceGenerator) {
     if (
       resource.resourceType === config.resource &&
@@ -12,8 +19,8 @@ export async function* processResources(resourceGenerator, config) {
 }
 
 function filterResource(resource, config) {
-  return config.filter.every((expression) =>
-    fhirpath.evaluate(resource, expression, null).every((v) => !!v)
+  return config.filters.every((expression) =>
+    expression(resource).every((v) => !!v)
   );
 }
 
@@ -26,7 +33,7 @@ function extractColumns(resource, config) {
 
       for (const key in config.columns) {
         const expression = config.columns[key];
-        const value = fhirpath.evaluate(resource, expression, context);
+        const value = expression(resource, context);
         if (value.length > 1) {
           console.log("Expression returned >1 value", key, value);
         }
@@ -37,11 +44,7 @@ function extractColumns(resource, config) {
       const currentKey = collectionKeys[0];
       const remainingKeys = collectionKeys.slice(1);
       const expression = config.collections[currentKey];
-      const currentCollection = fhirpath.evaluate(
-        resource,
-        expression,
-        context
-      );
+      const currentCollection = expression(resource, context);
       for (const item of currentCollection) {
         const newContext = { ...context, [currentKey]: item };
         yield* iterateCollections(remainingKeys, newContext);
@@ -56,15 +59,13 @@ function extractColumns(resource, config) {
 
 export async function* fromUrl(url) {
   const response = await fetch(url);
-  yield* fromNdjsonResponse(response)
-
+  yield* fromNdjsonResponse(response);
 }
 
 export async function* fromFile(file) {
   const response = new Response(file);
-  yield* fromNdjsonResponse(response)
+  yield* fromNdjsonResponse(response);
 }
-
 
 export async function* fromNdjsonResponse(response) {
   const reader = response.body.getReader();
@@ -94,4 +95,3 @@ export async function* fromNdjsonResponse(response) {
     }
   }
 }
-
