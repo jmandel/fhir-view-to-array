@@ -108,13 +108,18 @@
         .form-group {
           grid-template-columns: 1fr;
         }
+        html, body {
+
+          height: auto;
+
+      }
         #output {
           max-height: max-content;
         }
         body {
           grid-template-areas: "header" "inputs" "outputs";
           grid-template-columns: auto;
-          grid-template-rows: 3em 1fr 1ft;
+          grid-template-rows: 3em 1fr 1fr;
         }
       }
     </style>
