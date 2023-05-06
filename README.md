@@ -1,6 +1,6 @@
 # fhir-view-to-array
 
-Web demo at https://joshuamnadel.com/fhir-view-to-array
+Web demo at https://joshuamandel.com/fhir-view-to-array/
 
 Or run CLI with Deno...
 
