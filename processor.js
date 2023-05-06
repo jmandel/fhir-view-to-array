@@ -2,10 +2,10 @@ import fhirpath from "https://cdn.skypack.dev/fhirpath@v3.3.2";
 
 export async function* processResources(resourceGenerator, configIn) {
   const config = JSON.parse(JSON.stringify(configIn));
-  ["variables", "filters", "columns"].forEach((s) => {
-    Object.keys(config[s]).forEach((k) => {
-      config[s][k] = fhirpath.compile(config[s][k]);
-    });
+  ["expand", "vars", "filters", "columns"].forEach((s) => {
+    config[s].forEach((r) => {
+      r.$evaluate = fhirpath.compile(r.expr);
+    })
   });
 
   for await (const resource of resourceGenerator) {
@@ -20,20 +20,20 @@ export async function* processResources(resourceGenerator, configIn) {
 
 function filterResource(resource, config) {
   return config.filters.every((expression) =>
-    expression(resource).every((v) => !!v)
+    expression.$evaluate(resource).every((v) => !!v)
   );
 }
 
 function extractColumns(resource, config) {
   const variables = {};
 
-  function* iterateVariables(collectionKeys, context = {}) {
-    if (collectionKeys.length === 0) {
+  function* iterateVariables(collectionVars, context = {}) {
+    if (collectionVars.length === 0) {
       const rowData = [];
 
-      for (const key in config.columns) {
-        const expression = config.columns[key];
-        const value = expression(resource, context);
+      for (const col of config.columns) {
+        const key = col.name;
+        const value = col.$evaluate(resource, context);
         if (value.length > 1) {
           console.log("Expression returned >1 value", key, value);
         }
@@ -41,19 +41,18 @@ function extractColumns(resource, config) {
       }
       yield rowData;
     } else {
-      const currentKey = collectionKeys[0];
-      const remainingKeys = collectionKeys.slice(1);
-      const expression = config.variables[currentKey];
-      const currentCollection = expression(resource, context);
+      const currentVar = collectionVars[0];
+      const remainingVars = collectionVars.slice(1);
+      const currentCollection = currentVar.$evaluate(resource, context);
       for (const item of currentCollection) {
-        const newContext = { ...context, [currentKey]: item };
-        yield* iterateVariables(remainingKeys, newContext);
+        const newContext = { ...context, [currentVar.name]: item };
+        yield* iterateVariables(remainingVars, newContext);
       }
     }
   }
 
-  const collectionKeys = Object.keys(config.variables);
-  const result = Array.from(iterateVariables(collectionKeys));
+  const collectionVars = [...config.vars, ...config.expand];
+  const result = Array.from(iterateVariables(collectionVars));
   return result;
 }
 

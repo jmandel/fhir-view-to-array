@@ -19,7 +19,6 @@ const sqliteFile = args.sqlite;
 const append = !!args.append;
 const stdin = !!args.stdin;
 const infile = args.infile;
-console.log("inf", infile)
 
 const tableName = args.table || config.view || config.name || "output_table";
 
@@ -31,7 +30,7 @@ if (useSqlite && !tableName) {
 async function main() {
 
   const sources = [
-    ...infile.map(f => readableStreamFromReader(Deno.openSync(f, {read: true}))),
+    ...(infile || []).map(f => readableStreamFromReader(Deno.openSync(f, {read: true}))),
     ...(stdin ? [Deno.stdin.readable] : [])
   ]
 
@@ -56,14 +55,14 @@ async function main() {
 }
 
 async function printCsv(columns, processor) {
-  console.log(Object.keys(columns).map(quote).join(","));
+  console.log(columns.map(c => c.name).map(quote).join(","));
   for await (const row of processor) {
     console.log(row.map(quote).join(","));
   }
 }
 
 function createTable(db, tableName, columns, append) {
-  const columnDefs = Object.keys(columns).map((col) => `${col} TEXT`).join(", ");
+  const columnDefs = columns.map((col) => `${col.name} TEXT`).join(", ");
   if (!append) {
     db.execute(`DROP TABLE IF EXISTS ${tableName}`);
   }
@@ -71,7 +70,7 @@ function createTable(db, tableName, columns, append) {
 }
 
 async function insertData(db, tableName, columns, processor) {
-  const placeholders = Object.keys(columns).map(() => "?").join(", ");
+  const placeholders = columns.map(() => "?").join(", ");
     const q = db.prepareQuery(`INSERT INTO ${tableName} VALUES (${placeholders})`)
     for await (const row of processor) {
       q.execute(row);

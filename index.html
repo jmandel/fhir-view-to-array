@@ -144,19 +144,42 @@
 {
   "resource": "Patient",
   "filters": [
-    "Patient.gender = 'female'"
+    {
+      "expr": "Patient.gender = 'female'"
+    }
   ],
-  "variables": {
-    "pc": "Patient.contact",
-    "pct": "%pc.telecom",
-    "ident": "Patient.identifier"
-  },
-  "columns": {
-    "pidentifier": "%ident.system & '|' & %ident.value",
-    "cname": "%pc.name.text",
-    "ctel": "%pct.value"
-  }
-}</pre
+  "expand": [
+    {
+      "name": "pc",
+      "expr": "Patient.contact"
+    },
+    {
+      "name": "pct",
+      "expr": "%pc.telecom"
+    }
+  ],
+  "vars": [
+    {
+      "name": "ident",
+      "expr": "Patient.identifier"
+    }
+  ],
+  "columns": [
+    {
+      "name": "pidentifier",
+      "expr": "%ident.system & '|' & %ident.value"
+    },
+    {
+      "name": "cname",
+      "expr": "%pc.name.text"
+    },
+    {
+      "name": "ctel",
+      "expr": "%pct.value"
+    }
+  ]
+}
+</pre
         >
       </div>
       <button id="process">Process ndjson -> table</button>
