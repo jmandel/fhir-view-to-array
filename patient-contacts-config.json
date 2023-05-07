@@ -1,30 +1,40 @@
 {
   "resource": "Patient",
-  "filters": [
-    {
-      "expr": "gender = 'female'"
-    }
-  ],
   "context": "contact.telecom",
   "vars": [
     {
       "name": "ident",
       "expr": "Patient.identifier"
+    },
+    {
+      "name": "pc",
+      "expr": "Patient.contact",
+      "whenMultiple": "cross"
+    },
+    {
+      "name": "pct",
+      "expr": "%pc.telecom",
+      "whenMultiple": "unnest"
+    }
+  ],
+  "filters": [
+    {
+      "expr": "gender = 'female'"
     }
   ],
   "columns": [
     {
       "name": "pidentifier",
-      "expr": "%ident.value"
+      "expr": "%ident.value",
+      "whenMultiple": "array"
     },
     {
       "name": "cname",
-      "expr": "%resource.contact.name.text"
+      "expr": "%pc.name.text"
     },
     {
       "name": "ctel",
-      "expr": "%context.value"
+      "expr": "%pct.value"
     }
   ]
 }
-

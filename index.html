@@ -9,7 +9,8 @@
         box-sizing: border-box;
       }
 
-      html, body {
+      html,
+      body {
         height: 100%;
       }
 
@@ -60,7 +61,8 @@
         min-height: 300px;
       }
 
-      .form-group input, .form-group pre {
+      .form-group input,
+      .form-group pre {
         padding: 0.5rem;
         font-size: 1rem;
         border: 1px solid #ccc;
@@ -93,7 +95,8 @@
       #output th {
         background-color: #d1d1d1;
       }
-      th, td {
+      th,
+      td {
         border: 1px solid black;
         padding: 8px;
         text-align: left;
@@ -140,33 +143,49 @@
       </div>
       <div class="form-group">
         <label for="config">Config:</label>
-        <pre contenteditable style="background: white;" id="config" name="config" >
+        <pre
+          contenteditable
+          style="background: white"
+          id="config"
+          name="config"
+        >
 {
   "resource": "Patient",
-  "filters": [
-    {
-      "expr": "gender = 'female'"
-    }
-  ],
   "context": "contact.telecom",
   "vars": [
     {
       "name": "ident",
       "expr": "Patient.identifier"
+    },
+    {
+      "name": "pc",
+      "expr": "Patient.contact",
+      "whenMultiple": "cross"
+    },
+    {
+      "name": "pct",
+      "expr": "%pc.telecom",
+      "whenMultiple": "unnest"
+    }
+  ],
+  "filters": [
+    {
+      "expr": "gender = 'female'"
     }
   ],
   "columns": [
     {
       "name": "pidentifier",
-      "expr": "%ident.value"
+      "expr": "%ident.value",
+      "whenMultiple": "array"
     },
     {
       "name": "cname",
-      "expr": "%resource.contact.name.text"
+      "expr": "%pc.name.text"
     },
     {
       "name": "ctel",
-      "expr": "%context.value"
+      "expr": "%pct.value"
     }
   ]
 }
@@ -208,9 +227,9 @@
         outputTable.innerHTML = "";
         headerRow.innerHTML = "";
 
-        for (const key in config.columns) {
+        for (const col of config.columns) {
           const headerCell = document.createElement("th");
-          headerCell.textContent = key;
+          headerCell.textContent = col.name;
           headerRow.appendChild(headerCell);
         }
 
@@ -224,7 +243,7 @@
           outputTable.appendChild(tableRow);
         }
       });
-      go.click()
+      go.click();
     </script>
   </body>
 </html>
