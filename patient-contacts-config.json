@@ -5,7 +5,7 @@
       "expr": "gender = 'female'"
     }
   ],
-  "context": "Patient.contact.telecom",
+  "context": "contact.telecom",
   "vars": [
     {
       "name": "ident",
@@ -19,7 +19,7 @@
     },
     {
       "name": "cname",
-      "expr": "Patient.contact.name.text"
+      "expr": "%resource.contact.name.text"
     },
     {
       "name": "ctel",

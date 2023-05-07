@@ -2,14 +2,31 @@ import fhirpath from "https://cdn.skypack.dev/fhirpath";
 
 export async function* processResources(resourceGenerator, configIn) {
   const config = JSON.parse(JSON.stringify(configIn));
-  const context = vars(configIn.context);
-  config.expand = [...context, ...(config.expand || []).map(c => ({...c, expr: useVars(configIn.context, c.expr)}))]
-  config.columns = config.columns.map(c => ({...c, expr: useVars(configIn.context, c.expr)}));
+
+  if (config.context && !config.context.match(/^[A-Z]/)) {
+    config.context = config.resource + "." + config.context;
+  }
+
+  const context = vars(config.context);
+  config.columns = config.columns.map(c => ({...c, expr: useVars(config.context, c.expr)}));
+
+  ["expand", "vars", "filters", "columns"].forEach((s) => {
+    config[s] && config[s].forEach((r) => {
+      if (r.expr.match(/^%resource/)) {
+        r.expr = r.expr.replaceAll("%resource", config.resource)
+      }
+    })
+  });
+ 
+  config.expand = [...context, ...(config.expand || []).map(c => ({...c, expr: useVars(config.context, c.expr)}))]
+
+  config.columns = config.columns.map(c => ({...c, expr: useVars(config.context, c.expr)}));
   ["expand", "vars", "filters", "columns"].forEach((s) => {
     config[s] && config[s].forEach((r) => {
       r.$evaluate = fhirpath.compile(r.expr);
     })
   });
+  console.log(JSON.stringify(config, null, 2))
 
   for await (const resource of resourceGenerator) {
     if (
