@@ -4,7 +4,8 @@
   "vars": [
     {
       "name": "ident",
-      "expr": "Patient.identifier"
+      "expr": "Patient.identifier",
+      "whenMultiple": "cross"
     },
     {
       "name": "pc",
