@@ -25,8 +25,7 @@
   "columns": [
     {
       "name": "pidentifier",
-      "expr": "%ident.value",
-      "whenMultiple": "array"
+      "expr": "%ident.value"
     },
     {
       "name": "cname",
