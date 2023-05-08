@@ -269,7 +269,7 @@
         const hash = window.location.hash.substr(1);
         if (!hash) return;
         try {
-          const params = JSON.parse(decodeURIComponent(hash));
+          const params = JSON.parse(decodeURIComponent(hash).replaceAll("\)", ")"));
           if (params.url) {
             document.getElementById("url").value = params.url;
           }
