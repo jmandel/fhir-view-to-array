@@ -1,0 +1,28 @@
+{
+  "resource": "Observation",
+  "vars": [
+    {
+      "name": "sbp",
+      "expr": "component.where(code.text='Systolic Blood Pressure')"
+    },
+    {
+      "name": "dbp",
+      "expr": "component.where(code.text='Diastolic Blood Pressure')"
+    }
+  ],
+  "filters": [ {"expr": "Observation.code.text='Blood Pressure'"}],
+  "columns": [
+    {
+      "name": "when",
+      "expr": "Observation.effectiveDateTime.substring(0,10)"
+    },
+    {
+      "name": "sbp",
+      "expr": "%sbp.valueQuantity.value"
+    },
+    {
+      "name": "dbp",
+      "expr": "%dbp.valueQuantity.value"
+    }
+  ]
+}

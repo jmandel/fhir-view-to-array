@@ -80,8 +80,11 @@
         color: white;
         cursor: pointer;
         transition: background-color 0.3s;
-        width: 100%;
         margin-top: 1em;
+      }
+
+      button#process {
+        flex: 1;
       }
 
       button:hover {
@@ -201,7 +204,10 @@
 </pre
         >
       </div>
-      <button id="process">Process ndjson -> table</button>
+      <div style="display: flex; gap: 1em; width: 100%">
+        <button id="process">Process ndjson -> table</button>
+        <button id="copy-link">Copy Link</button>
+      </div>
     </div>
     <table id="output">
       <thead>
@@ -259,7 +265,70 @@
           outputTable.appendChild(tableRow);
         }
       });
+      function setInitialValuesFromHash() {
+        const hash = window.location.hash.substr(1);
+        if (!hash) return;
+        try {
+          const params = JSON.parse(decodeURIComponent(hash));
+          if (params.url) {
+            document.getElementById("url").value = params.url;
+          }
+          if (params.config) {
+            document.getElementById("config").innerText = JSON.stringify(
+              params.config,
+              null,
+              2
+            );
+          }
+        } catch (error) {
+          console.error("Error parsing URL hash:", error);
+        }
+      }
+
+      function generateLinkWithHash() {
+        const url = document.getElementById("url").value;
+        const config = JSON.parse(document.getElementById("config").innerText);
+        const params = { url, config };
+        const hash = encodeURIComponent(JSON.stringify(params));
+        return window.location.href.split("#")[0] + "#" + hash;
+      }
+
+      // Function to copy a text to the clipboard
+      async function copyToClipboard(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (error) {
+          console.error("Error copying to clipboard:", error);
+          return false;
+        }
+      }
+
+      async function onCopyLinkClick() {
+        const copyLinkButton = document.getElementById("copy-link");
+        const link = generateLinkWithHash();
+
+        if (await copyToClipboard(link)) {
+          window.location.hash = new URL(link).hash;
+          copyLinkButton.textContent = "Copied";
+          setTimeout(() => {
+            copyLinkButton.textContent = "Copy Link";
+          }, 1000);
+        } else {
+          copyLinkButton.textContent = "Error";
+          setTimeout(() => {
+            copyLinkButton.textContent = "Copy Link";
+          }, 1000);
+        }
+      }
+
+      document
+        .getElementById("copy-link")
+        .addEventListener("click", onCopyLinkClick);
+
+      setInitialValuesFromHash();
       go.click();
+
     </script>
   </body>
 </html>
