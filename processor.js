@@ -1,4 +1,4 @@
-import fhirpath from "https://cdn.skypack.dev/fhirpath";
+import fhirpath from "https://esm.sh/fhirpath";
 
 export async function* processResources(resourceGenerator, configIn) {
   const config = JSON.parse(JSON.stringify(configIn));
