@@ -28,7 +28,7 @@ function extractColumns(resource, config) {
 
   function* iterateVariables(collectionVars, context = { resource }) {
     if (collectionVars.length === 0) {
-      if (!filterResource(resource, config, collectionVars)) {
+      if (!filterResource(resource, config, context)) {
         return;
       }
       const rowData = [];
