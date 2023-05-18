@@ -1,4 +1,4 @@
-import fhirpath from "https://esm.sh/fhirpath";
+import "./vendor/fhirpath.js";
 
 export async function* processResources(resourceGenerator, configIn) {
   const config = JSON.parse(JSON.stringify(configIn));
