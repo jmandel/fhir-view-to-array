@@ -215,6 +215,7 @@
       </thead>
       <tbody id="table-body"></tbody>
     </table>
+    <script src="vendor/fhirpath.js"></script>
     <script>
       document.querySelector("pre").addEventListener("paste", function (e) {
         e.preventDefault();
@@ -236,9 +237,9 @@
 
         if (fileInput.files.length > 0) {
           const file = fileInput.files[0];
-          resources = processResources(fromFile(file), config);
+          resources = processResources(fromFile(file), config, fhirpath);
         } else if (url) {
-          resources = processResources(fromUrl(url), config);
+          resources = processResources(fromUrl(url), config, fhirpath);
         } else {
           output.textContent = "Please provide a URL or a file.";
           return;

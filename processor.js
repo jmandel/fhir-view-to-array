@@ -1,6 +1,4 @@
-import "./vendor/fhirpath.js";
-
-export async function* processResources(resourceGenerator, configIn) {
+export async function* processResources(resourceGenerator, configIn, fhirpath) {
   const config = JSON.parse(JSON.stringify(configIn));
   ["vars", "filters", "columns"].forEach((s) => {
     config[s] &&

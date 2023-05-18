@@ -2,6 +2,7 @@ import { parse } from "https://deno.land/std/flags/mod.ts";
 import { processResources, fromNdjsonResponse } from "./processor.js";
 import { DB } from "https://deno.land/x/sqlite/mod.ts";
 import { readableStreamFromReader } from "https://deno.land/std@0.171.0/streams/mod.ts";
+import fhirpath from "https://esm.sh/fhirpath";
 
 const args = parse(Deno.args, {collect: "infile"});
 
@@ -40,7 +41,7 @@ async function main() {
     }
   }
 
-  const processor = processResources(resources(sources), config);
+  const processor = processResources(resources(sources), config, fhirpath);
 
   if (useSqlite) {
     const db = new DB(sqliteFile);
