@@ -1,4 +1,6 @@
-import "./vendor/fhirpath.js";
+if (!window.fhirpath){
+  await import("./vendor/fhirpath.js");
+}
 
 export async function* processResources(resourceGenerator, configIn) {
   const config = JSON.parse(JSON.stringify(configIn));
