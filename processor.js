@@ -20,6 +20,24 @@ export async function* processResources(resourceGenerator, configIn) {
 }
 
 
+function compileViewDefinition(viewDefinition) {
+  if (!viewDefinition.select) {
+    return;
+  }
+  for (let field of viewDefinition.select) {
+    if (field.expr) {
+      field.$expr = fhirpath.compile(field.expr);
+    }
+    if (field.from) {
+      field.$from = fhirpath.compile(field.from);
+    }
+    if (field.forEach) {
+      field.$forEach = fhirpath.compile(field.forEach);
+    }
+    compileViewDefinition(field);
+  }
+}
+
 function* cartesianProduct(arrays) {
   if (arrays.length === 0) {
     yield [];
@@ -36,20 +54,20 @@ function* cartesianProduct(arrays) {
 function extractFields(viewDefinition, obj) {
   let fields = [];
   for (let field of viewDefinition) {
-    let { name, expr, forEach, select, from: fromField } = field;
-    if (name && expr) {
-      fields.push([{ [name]: fhirpath.evaluate(obj, expr)[0] }]);
+    let { name, $expr, $forEach, select, $from} = field;
+    if (name && $expr) {
+      fields.push([{ [name]: $expr(obj)[0] }]);
     }
-    else if (forEach && select) {
-      let nestedObjects = fhirpath.evaluate(obj, forEach);
+    else if ($forEach && select) {
+      let nestedObjects = $forEach(obj);
       let rows = [];
       for (let nestedObject of nestedObjects) {
         rows.push(...extract({ select }, nestedObject));
       }
       fields.push(rows);
     }
-    else if (fromField && select) {
-      let nestedObject = fhirpath.evaluate(obj, fromField);
+    else if ($from && select) {
+      let nestedObject = $from(obj);
       fields.push(extract({ select }, nestedObject ));
     } else {
       console.error("Bad expr", viewDefinition);
