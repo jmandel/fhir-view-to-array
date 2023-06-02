@@ -19,6 +19,53 @@ export async function* processResources(resourceGenerator, configIn) {
   }
 }
 
+
+function* cartesianProduct(arrays) {
+  if (arrays.length === 0) {
+    yield [];
+  } else {
+    let [first, ...rest] = arrays;
+    for (let item of first) {
+      for (let items of cartesianProduct(rest)) {
+        yield [item, ...items];
+      }
+    }
+  }
+}
+
+function extractFields(viewDefinition, obj) {
+  let fields = [];
+  for (let field of viewDefinition) {
+    let { name, expr, forEach, select, from: fromField } = field;
+    if (name && expr) {
+      fields.push([{ [name]: fhirpath.evaluate(obj, expr)[0] }]);
+    }
+    else if (forEach && select) {
+      let nestedObjects = fhirpath.evaluate(obj, forEach);
+      let rows = [];
+      for (let nestedObject of nestedObjects) {
+        rows.push(...extract({ select }, nestedObject));
+      }
+      fields.push(rows);
+    }
+    else if (fromField && select) {
+      let nestedObject = fhirpath.evaluate(obj, fromField);
+      fields.push(extract({ select }, nestedObject ));
+    } else {
+      console.error("Bad expr", viewDefinition);
+    }
+  }
+  return fields;
+}
+
+function* extract(viewDefinition, obj) {
+  let fields = extractFields(viewDefinition.select, obj);
+  for (let combination of cartesianProduct(fields)) {
+    let row = Object.assign({}, ...combination);
+    yield row;
+  }
+}
+
 function filterResource(resource, config, context) {
   return config.filters.every((expression) =>
     expression.$evaluate(resource, context).every((v) => !!v)
