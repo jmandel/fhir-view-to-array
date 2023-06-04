@@ -75,7 +75,7 @@ async function insertData(db, tableName, columns, processor) {
   const placeholders = columns.map(() => "?").join(", ");
     const q = db.prepareQuery(`INSERT INTO ${tableName} VALUES (${placeholders})`)
     for await (const row of processor) {
-      q.execute(row);
+      q.execute(columns.map(({name}) => row[name]));
     }
     q.finalize()
 }

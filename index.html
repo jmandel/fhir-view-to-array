@@ -203,7 +203,7 @@
       });
     </script>
     <script type="module">
-      import { processResources, fromFile, fromUrl } from "./processor.js";
+      import { getColumns, processResources, fromFile, fromUrl } from "./processor.js";
       const go = document.getElementById("process");
       go.addEventListener("click", async () => {
         const url = document.getElementById("url").value;
@@ -229,7 +229,8 @@
         outputTable.innerHTML = "";
         headerRow.innerHTML = "";
 
-        for (const col of config.columns) {
+        const columns = getColumns(config);
+        for (const col of columns) {
           const headerCell = document.createElement("th");
           headerCell.textContent = col.name;
           headerRow.appendChild(headerCell);
@@ -237,7 +238,7 @@
 
         for await (const row of resources) {
           const tableRow = document.createElement("tr");
-          for (const cellData of row) {
+          for (const cellData of columns.map(({name}) => row[name])) {
             const tableCell = document.createElement("td");
             tableCell.textContent = cellData;
             tableRow.appendChild(tableCell);
