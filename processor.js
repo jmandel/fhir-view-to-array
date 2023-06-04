@@ -4,41 +4,44 @@ if (!window.fhirpath) {
 
 export async function* processResources(resourceGenerator, configIn) {
   const config = JSON.parse(JSON.stringify(configIn));
+  const context = (config.constants || []).reduce((acc, next) => {
+    acc[next.name] = next.value;
+    return acc;
+  }, {});
   compileViewDefinition(config);
   for await (const resource of resourceGenerator) {
-    if (resource.resourceType === config.from) {
-      yield* extract(resource, config);
+    if (config.$from(resource, context).every((r) => !!r)) {
+      yield* extract(resource, config, context);
     }
   }
 }
 
 export function getColumns(viewDefinition) {
-  return (viewDefinition.select || []).flatMap(c => {
+  return (viewDefinition.select || []).flatMap((c) => {
     if (c.expr) {
-      return [c]
+      return [c];
     }
     if (c.select) {
-      return getColumns(c)
+      return getColumns(c);
     }
-    return []
-  })
+    return [];
+  });
 }
 
-
 function compileViewDefinition(viewDefinition) {
-  if (!viewDefinition.select) {
-    return;
+  if (viewDefinition.expr) {
+    viewDefinition.$expr = fhirpath.compile(viewDefinition.expr);
   }
-  for (let field of viewDefinition.select) {
-    if (field.expr) {
-      field.$expr = fhirpath.compile(field.expr);
-    }
-    if (field.from) {
-      field.$from = fhirpath.compile(field.from);
-    }
-    if (field.forEach) {
-      field.$forEach = fhirpath.compile(field.forEach);
-    }
+  if (viewDefinition.from) {
+    viewDefinition.$from = fhirpath.compile(viewDefinition.from);
+  }
+  if (viewDefinition.forEach || viewDefinition.foreach) {
+    viewDefinition.$forEach = fhirpath.compile(
+      viewDefinition.forEach || viewDefinition.foreach
+    );
+  }
+
+  for (let field of viewDefinition.select || []) {
     compileViewDefinition(field);
   }
 }
@@ -56,22 +59,22 @@ function* cartesianProduct(arrays) {
   }
 }
 
-function extractFields(obj, viewDefinition) {
+function extractFields(obj, viewDefinition, context = {}) {
   let fields = [];
   for (let field of viewDefinition) {
     let { name, $expr, $forEach, select, $from } = field;
     if (name && $expr) {
-      fields.push([{ [name]: $expr(obj)[0] }]);
+      fields.push([{ [name]: $expr(obj)[0], context }]);
     } else if ($forEach && select) {
       let nestedObjects = $forEach(obj);
       let rows = [];
       for (let nestedObject of nestedObjects) {
-        rows.push(...extract(nestedObject, { select }));
+        rows.push(...extract(nestedObject, { select }, context));
       }
       fields.push(rows);
     } else if ($from && select) {
       let nestedObject = $from(obj);
-      fields.push(extract(nestedObject, { select }));
+      fields.push(extract(nestedObject, { select }, context));
     } else {
       console.error("Bad expr", viewDefinition);
     }
@@ -80,12 +83,6 @@ function extractFields(obj, viewDefinition) {
 }
 
 function* extract(obj, viewDefinition, context = {}) {
-  if (
-    viewDefinition.$when &&
-    !when.every((e) => e(obj, context).every((r) => !!r))
-  ) {
-    return;
-  }
   let fields = extractFields(obj, viewDefinition.select);
   for (let combination of cartesianProduct(fields)) {
     let row = Object.assign({}, ...combination);
