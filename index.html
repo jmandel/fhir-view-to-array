@@ -163,42 +163,21 @@
           name="config"
         >
 {
-  "resource": "Patient",
-  "vars": [
-    {
-      "name": "ident",
-      "expr": "Patient.identifier",
-      "whenMultiple": "cross"
-    },
-    {
-      "name": "pc",
-      "expr": "Patient.contact",
-      "whenMultiple": "cross"
-    },
-    {
-      "name": "pct",
-      "expr": "%pc.telecom",
-      "whenMultiple": "unnest"
-    }
-  ],
-  "filters": [
-    {
-      "expr": "gender = 'female'"
-    }
-  ],
-  "columns": [
-    {
-      "name": "pidentifier",
-      "expr": "%ident.value"
-    },
-    {
-      "name": "cname",
-      "expr": "%pc.name.text"
-    },
-    {
-      "name": "ctel",
-      "expr": "%pct.value"
-    }
+  "name": "patient_identifiers",
+  "from": "Patient",
+  "select": [
+    {"name": "id", "expr": "id"},
+    {"forEach": "identifier", "select": [
+      {"name": "system", "expr": "system"},
+      {"name": "value", "expr": "value"},
+      {"from": "type", "select": [
+        {"name": "ident_type_text", "expr": "text"},
+        {"forEach": "coding", "select": [
+          {"name": "ident_type_system", "expr": "system"},
+          {"name": "ident_type_code", "expr": "code"}
+        ]}
+      ]}
+    ]}
   ]
 }
 </pre

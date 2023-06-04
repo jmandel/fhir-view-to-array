@@ -1,5 +1,5 @@
 import { parse } from "https://deno.land/std/flags/mod.ts";
-import { processResources, fromNdjsonResponse } from "./processor.js";
+import { getColumns, processResources, fromNdjsonResponse } from "./processor.js";
 import { DB } from "https://deno.land/x/sqlite/mod.ts";
 import { readableStreamFromReader } from "https://deno.land/std@0.171.0/streams/mod.ts";
 
@@ -40,24 +40,26 @@ async function main() {
     }
   }
 
+  const columns = getColumns(config)
   const processor = processResources(resources(sources), config);
 
   if (useSqlite) {
     const db = new DB(sqliteFile);
     db.execute("BEGIN TRANSACTION")
-    createTable(db, tableName, config.columns, append);
-    await insertData(db, tableName, config.columns, processor);
+    createTable(db, tableName, columns, append);
+    await insertData(db, tableName, columns, processor);
     db.execute("END")
     db.close()
   } else {
-    printCsv(config.columns, processor);
+    printCsv(columns, processor);
   }
 }
 
 async function printCsv(columns, processor) {
   console.log(columns.map(c => c.name).map(quote).join(","));
   for await (const row of processor) {
-    console.log(row.map(quote).join(","));
+    const rowQuoted = columns.map(({name}) => quote(row[name])).join(",")
+    console.log(rowQuoted);
   }
 }
 

@@ -1,22 +1,27 @@
-if (!window.fhirpath){
+if (!window.fhirpath) {
   await import("./vendor/fhirpath.js");
 }
 
 export async function* processResources(resourceGenerator, configIn) {
   const config = JSON.parse(JSON.stringify(configIn));
-  ["vars", "filters", "columns"].forEach((s) => {
-    config[s] &&
-      config[s].forEach((r) => {
-        r.$evaluate = fhirpath.compile(r.expr);
-        r.whenMultiple = r.whenMultiple || "error";
-      });
-  });
-
+  compileViewDefinition(config);
   for await (const resource of resourceGenerator) {
-    if (resource.resourceType === config.resource) {
-      yield* extractColumns(resource, config);
+    if (resource.resourceType === config.from) {
+      yield* extract(resource, config);
     }
   }
+}
+
+export function getColumns(viewDefinition) {
+  return (viewDefinition.select || []).flatMap(c => {
+    if (c.expr) {
+      return [c]
+    }
+    if (c.select) {
+      return getColumns(c)
+    }
+    return []
+  })
 }
 
 
@@ -51,24 +56,22 @@ function* cartesianProduct(arrays) {
   }
 }
 
-function extractFields(viewDefinition, obj) {
+function extractFields(obj, viewDefinition) {
   let fields = [];
   for (let field of viewDefinition) {
-    let { name, $expr, $forEach, select, $from} = field;
+    let { name, $expr, $forEach, select, $from } = field;
     if (name && $expr) {
       fields.push([{ [name]: $expr(obj)[0] }]);
-    }
-    else if ($forEach && select) {
+    } else if ($forEach && select) {
       let nestedObjects = $forEach(obj);
       let rows = [];
       for (let nestedObject of nestedObjects) {
-        rows.push(...extract({ select }, nestedObject));
+        rows.push(...extract(nestedObject, { select }));
       }
       fields.push(rows);
-    }
-    else if ($from && select) {
+    } else if ($from && select) {
       let nestedObject = $from(obj);
-      fields.push(extract({ select }, nestedObject ));
+      fields.push(extract(nestedObject, { select }));
     } else {
       console.error("Bad expr", viewDefinition);
     }
@@ -76,69 +79,18 @@ function extractFields(viewDefinition, obj) {
   return fields;
 }
 
-function* extract(viewDefinition, obj) {
-  let fields = extractFields(viewDefinition.select, obj);
+function* extract(obj, viewDefinition, context = {}) {
+  if (
+    viewDefinition.$when &&
+    !when.every((e) => e(obj, context).every((r) => !!r))
+  ) {
+    return;
+  }
+  let fields = extractFields(obj, viewDefinition.select);
   for (let combination of cartesianProduct(fields)) {
     let row = Object.assign({}, ...combination);
     yield row;
   }
-}
-
-function filterResource(resource, config, context) {
-  return config.filters.every((expression) =>
-    expression.$evaluate(resource, context).every((v) => !!v)
-  );
-}
-
-function extractColumns(resource, config) {
-  const variables = {};
-
-  function* iterateVariables(collectionVars, context = { resource }) {
-    if (collectionVars.length === 0) {
-      if (!filterResource(resource, config, context)) {
-        return;
-      }
-      const rowData = [];
-      for (const col of config.columns) {
-        const key = col.name;
-        const value = col.$evaluate(resource, context);
-        if (value.length > 1 && col.whenMultiple !== "array") {
-          console.error("Expression returned >1 value", key, value);
-        }
-        rowData.push(col.whenMultiple === "array" ? value : value?.[0]);
-      }
-      yield rowData;
-    } else {
-      const currentVar = collectionVars[0];
-      const remainingVars = collectionVars.slice(1);
-      const currentCollection = currentVar.$evaluate(resource, context);
-      if (currentCollection.length > 1 && currentVar.whenMultiple === "error") {
-        console.error(
-          `Error, expected single rows from ${JSON.stringify(currentVar)}`,
-        );
-      }
-      if (
-        currentCollection.length > 1 &&
-        currentVar.whenMultiple === "unnest" &&
-        currentVar.expr[0] !== "%"
-      ) {
-        console.error(
-          `Error, expected rows from ${
-            JSON.stringify(
-              currentVar,
-            )
-          } to unnest from an existing variable`,
-        );
-      }
-      for (const item of currentCollection) {
-        const newContext = { ...context, [currentVar.name]: item };
-        yield* iterateVariables(remainingVars, newContext);
-      }
-    }
-  }
-
-  const result = Array.from(iterateVariables(config.vars));
-  return result;
 }
 
 export async function* fromUrl(url) {
