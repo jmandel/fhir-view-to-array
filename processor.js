@@ -10,8 +10,8 @@ export async function* processResources(resourceGenerator, configIn) {
   }, {});
   compileViewDefinition(config);
   for await (const resource of resourceGenerator) {
-    if (config.$from(resource, context).every((r) => !!r)) {
-      yield* extract(resource, config, context);
+    for (const matchingResource of config.$from(resource, context)) {
+      yield* extract(matchingResource, config, context);
     }
   }
 }
@@ -28,15 +28,19 @@ export function getColumns(viewDefinition) {
   });
 }
 
+function compile(e) {
+  const e2 = (e === "$this") ? "trace()" : e;
+  return fhirpath.compile(e2);
+}
 function compileViewDefinition(viewDefinition) {
   if (viewDefinition.expr) {
-    viewDefinition.$expr = fhirpath.compile(viewDefinition.expr);
+    viewDefinition.$expr = compile(viewDefinition.expr)
   }
   if (viewDefinition.from) {
-    viewDefinition.$from = fhirpath.compile(viewDefinition.from);
+    viewDefinition.$from = compile(viewDefinition.from);
   }
   if (viewDefinition.forEach || viewDefinition.foreach) {
-    viewDefinition.$forEach = fhirpath.compile(
+    viewDefinition.$forEach = compile(
       viewDefinition.forEach || viewDefinition.foreach
     );
   }
