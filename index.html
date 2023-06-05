@@ -205,6 +205,11 @@
     <script type="module">
       import { getColumns, processResources, fromFile, fromUrl } from "./processor.js";
       const go = document.getElementById("process");
+      document.addEventListener('keydown', function(event) {
+        if (event.ctrlKey && event.key === 'Enter') {
+          go.click();
+        }
+      });
       go.addEventListener("click", async () => {
         const url = document.getElementById("url").value;
         const fileInput = document.getElementById("file");
