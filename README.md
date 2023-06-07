@@ -9,7 +9,7 @@ Or run CLI with Deno...
 ```sh
 cat pt.ndjson | \
 deno run --allow-read generate-table.ts \
-  --config patient-contacts-config.json \
+  --config patient-identifiers.json \
   --stdin \
 > contacts.csv
 ```
@@ -22,7 +22,7 @@ Add or replace a table in `analysis.db` (creating the file if necessary)
 
 ```sh
 deno run --allow-read --allow-write generate-table.ts \
-  --config patient-contacts-config.json \
+  --config patient-identifiers.json \
   --infile pt.ndjson \
   --sqlite analysis.db
 ```
