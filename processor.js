@@ -28,9 +28,12 @@ export function getColumns(viewDefinition) {
   });
 }
 
-function compile(e) {
-  const e2 = e === "$this" ? "trace()" : e;
-  return fhirpath.compile(e2);
+function compile(eIn, where) {
+  let e = eIn === "$this" ? "trace()" : eIn;
+  if (Array.isArray(where)) {
+    e += `.where(${where.map((w) => w.expr).join(" and ")})`;
+  }
+  return fhirpath.compile(e);
 }
 
 function compileViewDefinition(viewDefinition) {
@@ -38,11 +41,12 @@ function compileViewDefinition(viewDefinition) {
     viewDefinition.$expr = compile(viewDefinition.expr);
   }
   if (viewDefinition.from) {
-    viewDefinition.$from = compile(viewDefinition.from);
+    viewDefinition.$from = compile(viewDefinition.from, viewDefinition.where);
   }
   if (viewDefinition.forEach || viewDefinition.foreach) {
     viewDefinition.$forEach = compile(
-      viewDefinition.forEach || viewDefinition.foreach
+      viewDefinition.forEach || viewDefinition.foreach,
+      viewDefinition.where
     );
   }
 

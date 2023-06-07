@@ -165,21 +165,31 @@
 {
   "name": "patient_identifiers",
   "from": "Patient",
-  "constants": [{"name": "pi", "value": 3.14}],
+  "constants": [{ "name": "pi", "value": 3.14 }],
+  "where": [{ "expr": "gender = 'female'" }, { "expr": "birthDate > '1970'" }],
   "select": [
-    {"name": "id", "expr": "id"},
-    {"name": "pi_approx", "expr": "%pi"},
-    {"forEach": "identifier", "select": [
-      {"name": "system", "expr": "system"},
-      {"name": "value", "expr": "value"},
-      {"from": "type", "select": [
-        {"name": "ident_type_text", "expr": "text"},
-        {"forEach": "coding", "select": [
-          {"name": "ident_type_system", "expr": "system"},
-          {"name": "ident_type_code", "expr": "code"}
-        ]}
-      ]}
-    ]}
+    { "name": "id", "expr": "id" },
+    { "name": "pi_approx", "expr": "%pi" },
+    {
+      "forEach": "identifier",
+      "select": [
+        { "name": "system", "expr": "system" },
+        { "name": "value", "expr": "value" },
+        {
+          "from": "type",
+          "select": [
+            { "name": "ident_type_text", "expr": "text" },
+            {
+              "forEach": "coding",
+              "select": [
+                { "name": "ident_type_system", "expr": "system" },
+                { "name": "ident_type_code", "expr": "code" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
   ]
 }
 </pre
