@@ -165,8 +165,10 @@
 {
   "name": "patient_identifiers",
   "from": "Patient",
+  "constants": [{"name": "pi", "value": 3.14}],
   "select": [
     {"name": "id", "expr": "id"},
+    {"name": "pi_approx", "expr": "%pi"},
     {"forEach": "identifier", "select": [
       {"name": "system", "expr": "system"},
       {"name": "value", "expr": "value"},
