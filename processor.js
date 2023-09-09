@@ -68,7 +68,7 @@ function extractFields(obj, viewDefinition, context = {}) {
   let fields = [];
   for (let field of viewDefinition) {
     let { name, alias, path, $path, $forEach, select, $from } = field;
-    name = name ?? alias ?? path.split(".").slice(-1)[0];
+    name = name ?? alias ?? path?.split(".")?.slice(-1)?.[0];
     if (name && $path) {
       fields.push([{ [name]: $path(obj, context)[0] }]);
     } else if (($forEach || $from) && select) {
