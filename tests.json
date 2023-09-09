@@ -1,37 +1,60 @@
 {
-	"title": "first()",
+	"title": "path traversal in select",
 	"resources": [{
-		"resourceType": "Patient", 
-		"name" : [{
-			"use" : "official",
-			"family" : "f1",
-			"given" : ["g1.1","g1.2"]
-		},{
-			"use" : "usual",
-			"given" : ["g2.1"]
-		},{
-			"use" : "maiden",
-			"family" : "f3",
-			"given" : ["g3.1", "g3.2"],
-			"period" : {"end" : "2002"}
+		"resourceType": "Observation", 
+		"status": "preliminary",
+		"valueString": "positive",
+		"subject": {"reference": "Patient/123"},
+		"code": {
+			"coding": [{"code": "123"}]
+		},
+		"component": [{
+			"code": {
+				"coding": [{"code": "456"}]
+			}
 		}]
 	}],
 	"tests": [{
-		"title": "table level first()",
+		"title": "single segment",
 		"view": {
-			"resource": "Patient",
-			"select": [{"path": "name.first().use"}]
+			"resource": "Observation",
+			"select": [{"path": "status"}]
 		},
-		"expect": [{"use": "official"}]
+		"expect": [{"status": "preliminary"}]
 	},{
-		"title": "table and field level first()",
+		"title": "single segment with alias",
 		"view": {
-			"resource": "Patient",
-			"select": [{
-				"path": "name.first().given.first()", 
-				"name": "given"
-			}]
+			"resource": "Observation",
+			"select": [{"path": "status", "name": "ob_status"}]
 		},
-		"expect": [{"given": "g1.1"}]
+		"expect": [{"ob_status": "preliminary"}]
+	},{
+		"title": "segment with choice type",
+		"view": {
+			"resource": "Observation",
+			"select": [{"path": "value.ofType(String)"}]
+		},
+		"expect": [{"valueString": "positive"}]
+	},{
+		"title": "multiple segments",
+		"view": {
+			"resource": "Observation",
+			"select": [{"path": "subject.reference"}]
+		},
+		"expect": [{"reference": "Patient/123"}]
+	},{
+		"title": "multiple segments, one level of nesting",
+		"view": {
+			"resource": "Observation",
+			"select": [{"path": "code.coding.code"}]
+		},
+		"expect": [{"code": "123"}]
+	},{
+		"title": "multiple segments, multiple level of nesting ",
+		"view": {
+			"resource": "Observation",
+			"select": [{"path": "component.code.coding.code"}]
+		},
+		"expect": [{"code": "456"}]
 	}]
 }

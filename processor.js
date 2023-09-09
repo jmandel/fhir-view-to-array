@@ -4,13 +4,15 @@ if (!window.fhirpath) {
 
 export async function* processResources(resourceGenerator, configIn) {
   const config = JSON.parse(JSON.stringify(configIn));
+  console.log("Run test", configIn);
   const context = (config.constants || []).reduce((acc, next) => {
     acc[next.name] = next.value;
     return acc;
   }, {});
   compileViewDefinition(config);
   for await (const resource of resourceGenerator) {
-    if (resource.resourceType === config.resource) {
+    console.log("DEF", getColumns(config))
+    if ((config?.$resource || ((r) => r))(resource).length) {
       yield* extract(resource, config, context);
     }
   }
@@ -30,26 +32,45 @@ export function getColumns(viewDefinition) {
 
 function compile(eIn, where) {
   let e = eIn === "$this" ? "trace()" : eIn;
+  const ofTypeRegex = /\.ofType\(([^)]+)\)/;
+  const match = e.match(ofTypeRegex);
+  if (match) {
+      const replacement = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+      e = e.replace(ofTypeRegex, `${replacement}`);
+      console.log("\n\n***RE", e)
+  }
+
   if (Array.isArray(where)) {
-    e += `.where(${where.join(" and ")})`;
+    e += `.where(${where.map(w => w.path).join(" and ")})`;
   }
   return fhirpath.compile(e);
 }
 
 function compileViewDefinition(viewDefinition) {
+  if(viewDefinition.path && !viewDefinition.alias) {
+    viewDefinition.alias = viewDefinition.name ?? viewDefinition.path.split(".").filter(p => !p.includes("(")).slice(-1)[0]
+  }
   if (viewDefinition.path) {
     viewDefinition.$path = compile(viewDefinition.path);
   }
   if (viewDefinition.from) {
     viewDefinition.$from = compile(viewDefinition.from, viewDefinition.where);
   }
-  if (viewDefinition.forEach || viewDefinition.foreach) {
+  if (viewDefinition.forEach) {
     viewDefinition.$forEach = compile(
-      viewDefinition.forEach || viewDefinition.foreach,
+      viewDefinition.forEach,
       viewDefinition.where
     );
   }
-
+  if (viewDefinition.forEachOrNull) {
+    viewDefinition.$forEachOrNull = compile(
+      viewDefinition.forEachOrNull,
+      viewDefinition.where
+    );
+  }
+  if (viewDefinition.resource) {
+    viewDefinition.$resource = compile(viewDefinition.resource, viewDefinition.where)
+  }
   for (let field of viewDefinition.select || []) {
     compileViewDefinition(field);
   }
@@ -67,12 +88,17 @@ function cartesianProduct([first, ...rest]) {
 function extractFields(obj, viewDefinition, context = {}) {
   let fields = [];
   for (let field of viewDefinition) {
-    let { name, alias, path, $path, $forEach, select, $from } = field;
-    name = name ?? alias ?? path?.split(".")?.slice(-1)?.[0];
-    if (name && $path) {
-      fields.push([{ [name]: $path(obj, context)[0] }]);
-    } else if (($forEach || $from) && select) {
-      let nestedObjects = ($forEach || $from)(obj, context);
+    let { name, alias, path, $path, $forEach, $forEachOrNull, select, $from } = field;
+    alias = alias ?? name
+    if (alias && $path) {
+      const result = $path(obj, context);
+      if (result.length) {
+        fields.push([{ [alias]:  result[0]}]);
+      } else {
+        fields.push([]);
+      }
+    } else if (($forEach || $forEachOrNull || $from) && select) {
+      let nestedObjects = ($forEach || $forEachOrNull || $from)(obj, context);
       if ($from && nestedObjects.length > 1) {
         console.error(
           `Used $from keyword but matched >1 row`,
@@ -81,10 +107,16 @@ function extractFields(obj, viewDefinition, context = {}) {
         );
       }
       let rows = [];
+
       for (let nestedObject of nestedObjects) {
         for (let row of extract(nestedObject, { select }, context)) {
           rows.push(row);
         }
+      }
+      if ($forEachOrNull && nestedObjects.length === 0) {
+        const nulls = {}
+        getColumns(field).forEach(c => nulls[c.alias] = null)
+        rows.push(nulls)
       }
       fields.push(rows);
     } else {
@@ -143,6 +175,8 @@ export async function runTests(source) {
   const results = JSON.parse(JSON.stringify(source))
   results.implementation = "https://github.com/jmandel/fhir-view-to-array";
     for (const t of results.tests) {
+      try {
+
       const resources = async function*(){
         for (const r of results.resources) {
           yield r;
@@ -155,6 +189,15 @@ export async function runTests(source) {
       }
       const result = arraysMatch(rows, t.expect);
       t.result = result.passed ? {...result, message: undefined} : result;
+      if (!t.result.passed) {
+        t.unexpected = rows;
+      }
+      } catch(error) {
+        t.result = {
+          passed: false,
+          error
+        }
+      }
     }
     return JSON.parse(JSON.stringify(results));
 }

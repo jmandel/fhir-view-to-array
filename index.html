@@ -168,22 +168,22 @@
   "constants": [{ "name": "pi", "value": 3.14 }],
   "where": ["gender = 'female'", "birthDate > '1970'"],
   "select": [
-    { "name": "id", "path": "id" },
-    { "name": "pi_approx", "path": "%pi" },
+    { "alias": "id", "path": "id" },
+    { "alias": "pi_approx", "path": "%pi" },
     {
       "forEach": "identifier",
       "select": [
-        { "name": "system", "path": "system" },
-        { "name": "value", "path": "value" },
+        { "alias": "system", "path": "system" },
+        { "alias": "value", "path": "value" },
         {
           "from": "type",
           "select": [
-            { "name": "ident_type_text", "path": "text" },
+            { "alias": "ident_type_text", "path": "text" },
             {
               "forEach": "coding",
               "select": [
-                { "name": "ident_type_system", "path": "system" },
-                { "name": "ident_type_code", "path": "code" }
+                { "alias": "ident_type_system", "path": "system" },
+                { "alias": "ident_type_code", "path": "code" }
               ]
             }
           ]

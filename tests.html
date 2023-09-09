@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Runner SPA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        button {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Test Runner</h1>
+    <ul id="testFilesList"></ul>
+
+    <script type="module">
+        import { runTests } from "./processor.js";
+
+        const DEFAULT_TEST_FILES = [
+          "https://raw.githubusercontent.com/gotdan/flatfhir/main/tests/test-join-fn.json",
+          "https://raw.githubusercontent.com/gotdan/flatfhir/main/tests/test-extension.json",
+          "https://raw.githubusercontent.com/gotdan/flatfhir/main/tests/test-exists.json",
+          "https://raw.githubusercontent.com/gotdan/flatfhir/main/tests/test-select-path-traversal.json",
+          "https://raw.githubusercontent.com/gotdan/flatfhir/main/tests/test-where.json",
+          "https://raw.githubusercontent.com/gotdan/flatfhir/main/tests/test-select-first.json",
+          "https://raw.githubusercontent.com/gotdan/flatfhir/main/tests/test-sql-joins.json"
+        ];
+
+        const testFilesList = document.getElementById('testFilesList');
+        let testResults = [];
+
+        async function fetchAndRunTests(testFiles) {
+            const fetchPromises = testFiles.map(url => fetch(url).then(resp => resp.json()));
+            const testConfigs = await Promise.all(fetchPromises);
+
+            const runPromises = testConfigs.map(config => runTests(config));
+            testResults = await Promise.all(runPromises);
+
+            populateTestFilesList();
+        }
+
+        function populateTestFilesList() {
+            testResults.forEach((result, index) => {
+                const li = document.createElement('li');
+                li.textContent = `${result.title} - Passed: ${result.tests.filter(t => t.result.passed).length}, Failed: ${result.tests.length - result.tests.filter(t => t.result.passed).length}`;
+
+                const logBtn = document.createElement('button');
+                logBtn.textContent = "Log Results";
+                logBtn.onclick = () => {
+                    console.log(JSON.stringify(result, null, 2));
+                };
+                li.appendChild(logBtn);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.textContent = "Copy Results";
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(JSON.stringify(result, null, 2));
+                };
+                li.appendChild(copyBtn);
+
+                testFilesList.appendChild(li);
+            });
+        }
+
+        // Determine which test files to use
+        let testFiles = DEFAULT_TEST_FILES;
+        if (location.hash) {
+            try {
+                const data = JSON.parse(decodeURIComponent(location.hash.substring(1)));
+                if (data.tests && Array.isArray(data.tests)) {
+                    testFiles = data.tests;
+                }
+            } catch (err) {
+                console.error("Error parsing hash fragment:", err);
+            }
+        }
+        fetchAndRunTests(testFiles);
+    </script>
+</body>
+
+</html>
