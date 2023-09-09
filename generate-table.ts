@@ -1,19 +1,14 @@
 import { parse } from "https://deno.land/std/flags/mod.ts";
-import { getColumns, processResources, fromNdjsonResponse } from "./processor.js";
+import { getColumns, processResources, fromNdjsonResponse, runTests } from "./processor.js";
 import { DB } from "https://deno.land/x/sqlite/mod.ts";
 import { readableStreamFromReader } from "https://deno.land/std@0.171.0/streams/mod.ts";
 
 const args = parse(Deno.args, {collect: "infile"});
 
-if (!args.config) {
-  console.error("Usage: deno run --allow-read generate-table.ts --config myconfig.json [--sqlite mydb.sqlite] [--table mytable] [--append]");
-  Deno.exit(1);
-}
-
 const configPath = args.config;
-const configFile = await Deno.readTextFile(configPath);
-const config = JSON.parse(configFile);
-
+const configFile = configPath ? await Deno.readTextFile(configPath) : null;
+const config = configFile ? JSON.parse(configFile) : {};
+ 
 const useSqlite = !!args.sqlite;
 const sqliteFile = args.sqlite;
 const append = !!args.append;
@@ -25,6 +20,16 @@ const tableName = args.table || config.view || config.name || "output_table";
 if (useSqlite && !tableName) {
   console.error("Please provide a table name with --table option");
   Deno.exit(1);
+}
+
+if (args.tests) {
+  await tests();
+} else {
+  if (!args.config) {
+    console.error("Usage: deno run --allow-read generate-table.ts --config myconfig.json [--sqlite mydb.sqlite] [--table mytable] [--append]");
+    Deno.exit(1);
+  }
+  await main();
 }
 
 async function main() {
@@ -85,4 +90,18 @@ function quote(value) {
   return `"${escaped}"`;
 }
 
-await main();
+async function tests() {
+
+  const sources = [
+    ...(await Promise.all((infile || []).map(async (f) => await Deno.readTextFile(f)))),
+    ...(stdin ? [Deno.stdin.readable] : [])
+  ].map(v => JSON.parse(v) )
+
+
+  for (const s of sources) {
+    console.log("Run Test File", s.title);
+    const result = await runTests(s);
+    console.log(JSON.stringify(result, null, 2))
+  }
+}
+

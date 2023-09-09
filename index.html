@@ -164,26 +164,26 @@
         >
 {
   "name": "patient_identifiers",
-  "from": "Patient",
+  "resource": "Patient",
   "constants": [{ "name": "pi", "value": 3.14 }],
-  "where": [{ "expr": "gender = 'female'" }, { "expr": "birthDate > '1970'" }],
+  "where": ["gender = 'female'", "birthDate > '1970'"],
   "select": [
-    { "name": "id", "expr": "id" },
-    { "name": "pi_approx", "expr": "%pi" },
+    { "name": "id", "path": "id" },
+    { "name": "pi_approx", "path": "%pi" },
     {
       "forEach": "identifier",
       "select": [
-        { "name": "system", "expr": "system" },
-        { "name": "value", "expr": "value" },
+        { "name": "system", "path": "system" },
+        { "name": "value", "path": "value" },
         {
           "from": "type",
           "select": [
-            { "name": "ident_type_text", "expr": "text" },
+            { "name": "ident_type_text", "path": "text" },
             {
               "forEach": "coding",
               "select": [
-                { "name": "ident_type_system", "expr": "system" },
-                { "name": "ident_type_code", "expr": "code" }
+                { "name": "ident_type_system", "path": "system" },
+                { "name": "ident_type_code", "path": "code" }
               ]
             }
           ]
@@ -215,7 +215,7 @@
       });
     </script>
     <script type="module">
-      import { getColumns, processResources, fromFile, fromUrl } from "./processor.js";
+      import { getColumns, processResources, fromFile, fromUrl, runTests } from "./processor.js";
       const go = document.getElementById("process");
       document.addEventListener('keydown', function(event) {
         if (event.ctrlKey && event.key === 'Enter') {
@@ -228,6 +228,12 @@
         const configTextArea = document.getElementById("config");
         const output = document.getElementById("output");
         const config = JSON.parse(configTextArea.innerText);
+        if (config.tests) {
+          console.log("Run Test File", config.title);
+          const result = await runTests(config);
+          console.log(JSON.stringify(result, null, 2))
+          return;
+        }
 
         let resources;
 
