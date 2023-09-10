@@ -203,6 +203,24 @@ export async function runTests(source) {
 }
 
 function arraysMatch(arr1, arr2) {
+    // Canonicalize arrays
+    const canonicalize = (arr) => {
+        return arr.sort((a, b) => {
+            const keysA = Object.keys(a).sort();
+            const keysB = Object.keys(b).sort();
+            
+            for (let i = 0; i < Math.min(keysA.length, keysB.length); i++) {
+                if (a[keysA[i]] < b[keysB[i]]) return -1;
+                if (a[keysA[i]] > b[keysB[i]]) return 1;
+            }
+
+            return keysA.length - keysB.length; // if one has more keys than the other
+        });
+    };
+
+    arr1 = canonicalize([...arr1]); // Spread to avoid mutating the original array
+    arr2 = canonicalize([...arr2]);
+
     // Check if arrays are of the same length
     if (arr1.length !== arr2.length) {
         return {
